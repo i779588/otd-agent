@@ -1,4 +1,4 @@
-> Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md)
+> Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md)
 
 # SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Migration Guide
 
