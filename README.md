@@ -66,10 +66,10 @@ Before building, validate these conditions. Discovering them late is expensive.
 
 ### SAP API Access
 
-| Checkpoint | How to verify | Blocker if missing |
+| Checkpoint | How to verify | Comments |
 |---|---|---|
-| OData Service Usage Clause| `Product Team Gudiance` → <Gudiance> | <Blocker ?> |
-| Transperency | `Best Practice`  → <Gudiance> | <Blocker ?> |
+| OData Service Usage Clause| `Product Team Gudiance` → [<Gudiance> ](https://help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf)| IMP: Verifiy with global api policy team |
+
 
 > Have agreed way ahead with right stakeholders as emails save for reference.
 
