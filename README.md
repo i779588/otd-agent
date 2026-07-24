@@ -80,6 +80,14 @@ Before building, validate these conditions. Discovering them late is expensive.
 - **Alert on 403/404 tool failures** — set up CF log drain to monitoring; tool access issues need Basis team response
 - **Version the system prompt** — track prompt changes that affect simulation outputs
 
+
+**Observability & tracing:**
+
+- **Correlation ID per request** — generate (or accept from the caller) an ID at the A2A boundary and thread it through every downstream call and every log line. Use the incoming `messageId`/`contextId` as the correlation key so a Joule conversation can be traced end-to-end.
+- **Structured logs, not prose** — emit one structured record per tool call with at least: `correlation_id`, `context_id`, `tool_name`, `sap_mode` (mock/gateway/cloud/onprem), `status`, `latency_ms`, `prompt_tokens`, `completion_tokens`. This makes the CF log drain queryable rather than just readable.
+- **Redact before logging** — sanitise tool args before they hit logs; SAP user IDs and vendor names are PII in some jurisdictions (see Data Governance below). Log the correlation ID, not the payload.
+- **Prompt-regression signal** — because each log line carries the prompt version (Prompt versioning), a behavior change can be traced to the exact prompt revision that introduced it.
+
 ### Data Governance & Compliance
 
 - **Advisory-only principle** — agents must never write to SAP systems. System prompt must explicitly forbid `POST`/`PATCH`/`DELETE` operations
@@ -160,7 +168,7 @@ def get_system_prompt() -> str:
     return "Your domain-specific system prompt here..."
 ```
 
-> ⚠️ `@agent_config` exposes values to the BTP admin UI. It is intentionally restricted to temperature. All other configuration must be plain Python constants.
+> ⚠️ `@agent_config` exposes values to the BTP admin UI. All other configuration must be plain Python constants.
 
 ### Start with mock mode — always
 
@@ -392,6 +400,134 @@ async def get_mcp_tools():
 ```
 
 ---
+
+## 3a. Authorization & Identity Propagation - Decide **whose identity reaches the SAP backend** before you build.
+
+### Two identity models — pick one per deployment
+
+| Model | Who SAP sees | When to use | Trade-off |
+|---|---|---|---|
+| **Technical user** | One fixed service account | Batch/event-driven agents, no per-user authorization needed | Simple; but SAP audit log shows the service account, not the end user. No row-level authorization by user. |
+| **Principal propagation** | The actual end user | Interactive agents where SAP authorizations must apply per user | Correct audit trail + row-level security; requires trust config between IAS/XSUAA and the SAP backend. |
+
+> ⚠️ Advisory-only agents (this blueprint's default) still often need **principal propagation** — a user must only *see* data they're authorized to read. A technical user with broad read access can leak data across authorization boundaries even without writing anything.
+
+### How identity flows (principal propagation)
+
+```
+End user → Joule (IAS login)
+   ↓ OIDC/JWT (user identity)
+A2A endpoint on your CF agent   ← validate JWT here (XSUAA)
+   ↓ exchange user JWT for backend assertion
+Destination (Authentication = OAuth2SAMLBearerAssertion / PrincipalPropagation)
+   ↓ user's SAML assertion / X.509
+Cloud Connector → SAP backend   ← SAP sees the real user, applies their roles
+```
+
+### Destination `Authentication` types — when each applies
+
+| Destination `Authentication` | Identity at SAP | Notes |
+|---|---|---|
+| `BasicAuthentication` | Technical user | Simplest; credentials stored in destination |
+| `OAuth2SAMLBearerAssertion` | End user (cloud→cloud) | For S/4HANA Cloud. Requires OAuth client + trust in the SAP tenant. |
+| `PrincipalPropagation` | End user (via Cloud Connector) | For on-prem S/4HANA. Requires Cloud Connector system-certificate trust. |
+| `OAuth2ClientCredentials` | Technical client | For AGW / service-to-service, no user context. |
+
+> The three-step auth chain in Mode C assumes `BasicAuthentication` (pre-built Basic header from the destination). For principal propagation, Step 1 returns a destination configured for SAML/X.509 instead of a Basic header, and the user JWT must be forwarded — set the destination `Authentication` accordingly and forward the incoming token.
+
+### `xs-security.json` — what the agent app needs
+
+Bind an XSUAA instance so the agent can validate incoming JWTs and (optionally) exchange them:
+
+```json
+{
+  "xsappname": "my-agent",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    { "name": "$XSAPPNAME.Invoke", "description": "Call this agent" }
+  ],
+  "role-templates": [
+    { "name": "AgentUser", "scope-references": ["$XSAPPNAME.Invoke"] }
+  ],
+  "oauth2-configuration": {
+    "redirect-uris": ["https://my-agent.cfapps.<region>.hana.ondemand.com/**"]
+  }
+}
+```
+
+```yaml
+# manifest.yml — add the xsuaa service binding
+services:
+  - my-agent-xsuaa   # cf create-service xsuaa application my-agent-xsuaa -c xs-security.json
+```
+
+> Role-collection assignment *policy* (who gets `AgentUser`, approval flow) is governed by `guidelines.md` — follow it there; this section covers only the technical wiring.
+
+### Validate the incoming JWT at the A2A boundary
+
+```python
+# [illustrative] agent_executor.py — reject unauthenticated calls before any tool runs
+# In mock mode (IBD_TESTING=1), skip validation so offline tests/demos still work.
+if os.environ.get("IBD_TESTING") != "1":
+    token = _bearer_from_headers(request.headers)          # Authorization: Bearer <jwt>
+    claims = validate_xsuaa_jwt(token)                     # verify signature, audience, scope
+    # carry user identity into tool calls for principal propagation
+    request_ctx.user_token = token
+```
+
+> ⚠️ Never trust `metadata.user` or any client-supplied identity field — always derive identity from the validated JWT. Client metadata (`mock`, `sap_mode`) controls *behavior*, never *authorization*.
+
+---
+
+## 3b. Error Handling & Resilience Contract
+1b says to *alert* on 403/404 tool failures. This section defines what the agent actually **returns** when a tool fails — because an advisory agent that silently hallucinates around a failed SAP call is worse than one that says "I couldn't reach the data."
+
+### Error taxonomy → agent behavior
+
+| Condition | Likely cause | Agent behavior | Retry? |
+|---|---|---|---|
+| **401 Unauthorized** | Expired/invalid token | Refresh token once, retry. If still 401 → surface auth error, stop. | Once, after refresh |
+| **403 Forbidden** | Missing role/authorization on the entity | Do **not** retry. Tell user the data is not authorized for them; suggest contacting Basis. | No |
+| **404 Not Found** | Wrong entity set / service alias / record absent | Do **not** retry. State the record/service was not found; never fabricate a substitute. | No |
+| **429 Too Many Requests** | Backend/AI Core throttle | Exponential backoff, retry up to N. If exhausted → ask user to retry later. | Yes, backoff |
+| **5xx / timeout** | Backend down, Cloud Connector down, proxy timeout | Retry idempotent GETs with backoff. If exhausted → partial answer + explicit gap note. | Yes (GET only) |
+| **AI Core token-expiry** | OAuth token TTL elapsed mid-session | Transparently re-fetch AICORE token, retry. | Yes, transparent |
+
+### Golden rules
+
+1. **Never return a raw stack trace or SAP error payload to the end user.** Log the detail (with correlation id, see 1b Observability); return an advisory-safe message.
+2. **A failed tool call is a data gap, not a reason to guess.** Combine with the existing system-prompt rule *"When data is missing, state this explicitly and continue with partial simulation + disclaimer"*.
+3. **Retry only idempotent operations.** All SAP calls here are GETs (advisory-only), so retry is safe — but keep the guard explicit so a future writer of a non-GET tool must opt in.
+4. **Circuit-break repeated failures.** After K consecutive failures to the same MCP server/tool, stop calling it for the request and report the outage rather than timing out repeatedly.
+
+### Pattern
+
+```python
+# [illustrative] mcp_tools.py — wrap tool invocation with a resilience policy
+async def call_tool_safely(tool, args):
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await tool.arun(args)
+        except AuthExpired:
+            refresh_tokens()                      # 401 / AI Core token-expiry
+            continue
+        except Throttled:                         # 429
+            await backoff(attempt)
+            continue
+        except (BackendUnavailable, Timeout):     # 5xx / timeout — GET is idempotent
+            await backoff(attempt)
+            continue
+        except Forbidden:                         # 403 — do not retry
+            return ToolError("not_authorized", user_msg="You don't have access to this SAP data.")
+        except NotFound:                          # 404 — do not retry
+            return ToolError("not_found", user_msg="That record or service was not found in SAP.")
+    return ToolError("unavailable", user_msg="SAP data is temporarily unavailable. Please retry shortly.")
+```
+
+> The agent then folds `ToolError.user_msg` into its answer and appends the standard disclaimer — never the raw exception.
+
+---
+
 
 ## 4. System Prompt Engineering
 
@@ -861,4 +997,109 @@ Automated business trigger?     → Event Mesh listener → POST /
 
 ---
 
-# Agent-PathToProd
+### Glossary
+
+| Term | Meaning |
+|---|---|
+| **A2A** | Agent-to-Agent protocol — JSON-RPC over HTTP, the standard agent communication layer; native in Joule 2.0 |
+| **AGW** | Agent Gateway — BTP service that proxies auth + routing to SAP APIs (Mode B) |
+| **ORD** | Open Resource Discovery — the ID scheme (`sap.s4:apiResource:...`) used in `asset.yaml`; the Joule 2.0 registration key |
+| **EDMX** | OData metadata document describing entity sets and properties; input to the MCP translation pipeline |
+| **MCP** | Model Context Protocol — how tools are described and invoked by the agent |
+| **IAS** | Identity Authentication Service — SAP's identity provider; Joule uses a separate `das-ias` tenant |
+| **XSUAA** | SAP's OAuth/JWT authorization service on BTP; validates incoming tokens (3a) |
+| **VCAP_SERVICES** | Env var CF injects with bound service credentials |
+| **SCC** | SAP Cloud Connector — secure tunnel to on-prem SAP; used by the connectivity proxy (Mode C) |
+| **GenAI Hub** | SAP AI Core's Generative AI Hub — provides LLM access (Claude/GPT) via LiteLLM |
+| **CF** | Cloud Foundry — the BTP runtime the agent deploys to |
+
+---
+Agent-PathToProd
+
+One master checklist — from zero to Joule-registered production. Each item is tagged:
+
+[code] — Claude Code validates this when generating the agent
+[deploy] — Developer validates this when building/deploying
+
+Each gate must pass before the next stage starts.
+
+
+---
+Agent-PathToProd
+
+One master checklist — from zero to Joule-registered production. Each item is tagged:
+
+[code] — Claude Code validates this when generating the agent
+[deploy] — Developer validates this when building/deploying
+
+Each gate must pass before the next stage starts.
+
+---
+
+Stage 0 — Pre-build validation
+[ ] [deploy] SAP API usage clause confirmed with product team
+[ ] [deploy] Agent Gateway entitlement checked: cf marketplace | grep agent-gateway
+[ ] [deploy] Joule IAS (das-ias) account exists
+[ ] [deploy] JouleAdmin role collection assigned to your BTP user
+[ ] [deploy] Space Developer CF role granted
+[ ] [deploy] Memory quota confirmed ≥ 512M
+[ ] [deploy] Identity model decided: technical user vs. principal propagation
+
+Stage 1 — Scaffold & mock
+[ ] [deploy] sap-agent-bootstrap run
+[ ] [code] Exactly three mandatory decorators; @agent_config = temperature only
+[ ] [code] No invented imports; [illustrative] samples reconciled against scaffold
+[ ] [deploy] mcp-mock.json created; responses deterministic
+[ ] [code] IBD_TESTING=1 honored everywhere — mock works fully offline
+[ ] [deploy] Tests pass; coverage ≥ 70%; agent card returns valid JSON
+[ ] [code] System prompt has all 6 MANDATORY RULES + disclaimer
+[ ] [deploy] Prompt versioned + golden set eval passes
+
+Stage 2 — SAP connectivity
+[ ] [deploy] EDMX downloaded; MCP translation files generated
+[ ] [deploy] Connectivity mode configured (A/B/C)
+[ ] [deploy] On-prem entity set names verified via /IWFND/MAINT_SERVICE
+[ ] [code] SAP_MODE switch + per-request metadata override wired
+[ ] [code] asset.yaml present with correct ORD IDs
+
+Stage 3 — Auth & resilience hardening
+[ ] [deploy] XSUAA instance created + bound in manifest.yml
+[ ] [code] JWT validated at A2A boundary; identity never from client metadata
+[ ] [deploy] Destination Authentication type matches identity model
+[ ] [code] Error taxonomy handled; no raw traces to users; retry GETs only
+[ ] [code] Advisory-only: no POST/PATCH/DELETE; top=100; never fabricate
+[ ] [code] Conversation state externally persisted, keyed by contextId + user identity
+[ ] [code] Token-window cap + tool-payload summarization in place
+
+Stage 4 — Observability & security
+[ ] [deploy] application-logs bound; CF log drain + 403/404 alerts configured
+[ ] [code] Structured logs: correlation_id, tool_name, sap_mode, tokens, latency
+[ ] [code] PII redacted; prompt version stamped in logs
+[ ] [code] No credentials committed; .env gitignored; VCAP bindings in prod
+[ ] [deploy] CORS + rate limiting hardened for external exposure
+
+Stage 5 — Cloud Foundry deployment
+[ ] [code] manifest.yml: 512M, health-check on /.well-known/agent.json, SAP_MODE, AGENT_PUBLIC_URL
+[ ] [code] VCAP_SERVICES mapped before imports; messageId required on inbound
+[ ] [deploy] cf login --sso; cf push succeeds; agent card live on CF URL
+[ ] [code] Agent card skills[].description + tags written for Joule intent routing
+
+Stage 6 — Joule Studio registration
+[ ] [deploy] Agent card URL registered in Joule admin UI
+[ ] [deploy] Joule routes a test query; valid response received
+[ ] [deploy] asset.yaml ORD IDs confirmed as Joule 2.0 registration keys
+
+Stage 7 — Production readiness sign-off
+[ ] [deploy] Data residency: AI Core region matches SAP system's requirements
+[ ] [deploy] Human reviewer verified disclaimer present on all financial outputs
+[ ] [deploy] Incident response contacts known (Basis for 403s, SCC admin for proxy)
+[ ] [deploy] Event Mesh listener deployed if event-driven triggers needed
+
+Stage 8 — Joule 2.0 migration readiness
+[ ] [deploy] AGW registration verified: scripts/register_mcp_servers.py --list
+[ ] [deploy] asset.yaml ORD IDs correct — no code changes needed for Joule 2.0
+[ ] [deploy] Agent tested against Joule 2.0 sandbox when available
+[ ] [deploy] Destination + Connectivity kept/removed based on AGW coverage
+
+---
+---
