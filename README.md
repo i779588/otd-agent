@@ -16,6 +16,38 @@ SAP developers building custom AI agents that need to consume SAP data and integ
 
 ---
 
+**Two ways to use this blueprint:**
+
+1. **Guided, no-code** — hand [`example.md`](example.md) to a coding harness (Claude Code or similar). It interviews you, tells you which values to place in a `.env`, then scaffolds, tests, and launches a working agent. See [Guided Quick-Start](#guided-quick-start) below. This is the fastest path and applies every practice in this document for you.
+2. **Manual, engineer-driven** — follow Parts A–C directly. This is the reference the guided path is built on, and the source of truth for every engineering decision.
+
+---
+
+## Guided Quick-Start
+
+If you want a working agent fast without writing code, use the guided files that
+ship alongside this blueprint:
+
+| File | Role |
+|---|---|
+| [`example.md`](example.md) | Self-contained, no-code recipe. Drop it in an empty folder, and a coding harness interviews you → builds → tests → launches. |
+| [`CLAUDE.md`](CLAUDE.md) | Auto-loaded by Claude Code when the folder opens. Greets the user, routes them into `example.md`, and enforces the guardrails (work in a new sub-folder, never touch reference files, secrets only in `.env`). |
+
+**Steps for the end user:**
+
+1. Create a new empty folder (e.g. `my-agent/`).
+2. Copy `example.md`, `CLAUDE.md`, and (optionally) this `README-2.md` into it.
+3. Open the folder in Claude Code.
+4. Type **`start`** (auto-start via `CLAUDE.md`) — or paste the kickoff prompt in `example.md` §1.
+5. Answer the interview questions; paste API values into `.env` when asked.
+6. When every build gate is green, tell the agent to **launch**.
+
+The guided path never edits the reference files or any other project; it
+scaffolds into a fresh sub-folder and asks before anything non-local. The rest of
+this document is the engineering blueprint behind it.
+
+---
+
 # Part A — Build
 
 ## 1. The SAP Agent Landscape
@@ -33,6 +65,21 @@ Joule Studio is the current SAP development environment for custom AI agents. It
 ### Where Joule 2.0 is headed
 
 Joule 2.0 (in development) will provide native agent orchestration — custom agents become first-class Joule skills without a separate deployment step. The A2A protocol and `asset.yaml` ORD IDs you define today are exactly the registration format Joule 2.0 uses. **An agent built correctly today migrates to Joule 2.0 with infrastructure changes only — no code changes.**
+
+### A layered design that survives platform change
+
+Because the platform is moving (Joule Studio today → Joule 2.0 → a consolidated
+SAP Business AI platform tomorrow), this blueprint deliberately isolates the
+parts most likely to change so a later migration is a swap, not a rewrite:
+
+- **Model access** is isolated behind a single switch — `LLM_PROVIDER` (`aicore` | `openai-compatible`). Swapping the model provider (including for a regulated region) touches configuration only, never tool or business logic. See [§1a](#1a-model-provider-isolation).
+- **Agent transport** is A2A — a stable protocol that is native in Joule 2.0.
+- **Persistence** is in-memory by default (fine for MVPs); a durable store (HANA Cloud) is a drop-in where state must survive restarts.
+- **Regional assumptions** live in one place per concern, not scattered through code. See [§1c](#1c-regional--sovereign-deployments).
+
+When the platform matures, replace the model provider, keep the A2A surface, the
+Joule capability files, the tool APIs, the persistence schema, and the regional
+checks.
 
 ### Three SAP connectivity modes
 
@@ -60,6 +107,45 @@ SAP APIs — via one of the three modes above
 
 ---
 
+## 1a. Model Provider Isolation
+
+The LLM endpoint is the single most portable part of the stack. Keep it behind
+one switch so it can be swapped per environment (dev vs prod), per contract, or
+per region (see [§1c](#1c-regional--sovereign-deployments)) without touching
+anything else.
+
+| `LLM_PROVIDER` | Endpoint | Use when |
+|---|---|---|
+| `aicore` | SAP AI Core / Generative AI Hub (Claude, GPT, …) via LiteLLM | You have an AI Core instance; the standard commercial path. |
+| `openai-compatible` | Any hosted OpenAI-compatible gateway | AI Core is unavailable in your region, or you must route through a customer-approved model gateway. |
+
+**AI Core (`aicore`):**
+
+```bash
+LLM_PROVIDER=aicore
+AGENT_MODEL=sap/anthropic--claude-3.5-sonnet     # or your deployed model
+AICORE_CLIENT_ID=<from AI Core service key>
+AICORE_CLIENT_SECRET=<from AI Core service key>
+AICORE_AUTH_URL=<from AI Core service key>
+AICORE_BASE_URL=<from AI Core service key>
+AICORE_RESOURCE_GROUP=default
+```
+
+**OpenAI-compatible model gateway (`openai-compatible`):**
+
+```bash
+LLM_PROVIDER=openai-compatible
+MODEL_GATEWAY_URL=https://model-gateway.example.com/v1
+MODEL_GATEWAY_API_KEY=<from your secret store>
+MODEL_NAME=<model-deployment-name>
+```
+
+> The model provider is orthogonal to the SAP connectivity mode. Live business
+> data is read over plain HTTP/OData against the customer's own system and is
+> region-agnostic — only the *model* endpoint changes when you move providers.
+
+---
+
 ## 1b. Road to Production: Key Considerations
 
 Before building, validate these conditions. Discovering them late is expensive.
@@ -71,7 +157,7 @@ Before building, validate these conditions. Discovering them late is expensive.
 | OData Service Usage Clause| `Product Team Gudiance` → [<Gudiance> ](https://help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf)| IMP: Verifiy with global api policy team |
 
 
-> Have agreed way ahead with right stakeholders as emails save for reference.
+> Agree the way ahead with the right stakeholders; keep the confirming emails for reference.
 
 
 **Recommended for production:**
@@ -120,6 +206,50 @@ curl -s http://localhost:5000/.well-known/agent.json | python3 -m json.tool
 ```
 
 All of the above must pass before `cf push`. Production 403s on real data are dramatically harder to debug than local mock failures.
+
+---
+
+## 1c. Regional & Sovereign Deployments
+
+The commercial path (Joule BYOA + SAP AI Core / Generative AI Hub) is GA in
+`eu10` and rolling out across regular commercial regions. It is **not** available
+everywhere — notably China Landing, NS2, and KSA non-regulated. This blueprint
+treats regulated / sovereign regions as **first-class**, not an afterthought, so
+you can build customer value now and migrate cleanly later.
+
+**Principles for a region-portable agent:**
+
+1. **Isolate the model.** Where AI Core isn't available, set `LLM_PROVIDER=openai-compatible` and point at a customer-approved model gateway ([§1a](#1a-model-provider-isolation)). Nothing else in the agent changes.
+2. **Keep the data path region-agnostic.** Reading business data is a plain HTTP/OData call to the customer's own system — it works identically regardless of model region.
+3. **Verify the region before you commit.** Confirm which services (Joule, AI Core, Agent Gateway, HANA) are actually available in the target subaccount *before* designing around them. Re-verify periodically (regional availability changes).
+4. **Have a UI fallback where Joule isn't GA.** If the region has no Joule control plane, surface the agent through a custom UI shell (e.g. a UI5 chat shell) instead of the Joule consumer experience. The agent itself is unchanged; only the front door differs.
+
+**Fast path (regulated region), end to end:**
+
+```bash
+# 1. Verify what the region exposes (services, entitlements) before building.
+btp --format json list accounts/entitlement --subaccount <SUBACCOUNT_ID>
+
+# 2. Scaffold, pointing the model at the approved gateway.
+export LLM_PROVIDER=openai-compatible
+export MODEL_GATEWAY_URL=https://model-gateway.example.com/v1
+export MODEL_GATEWAY_API_KEY=<from-secret-store>
+export MODEL_NAME=<model-deployment-name>
+
+# 3. Build and test in mock mode (offline), then connect live data over OData.
+# 4. Deploy to CF or Kyma; surface via Joule where available, else a UI5 shell.
+```
+
+Joule availability, summarized (verify per tenant — this moves):
+
+| Region | Joule (BYOA + A2A) | Fallback if not GA |
+|---|---|---|
+| `eu10` | GA — happy path | — |
+| `eu11 / us10 / us20 / us21 / jp10 / ap10 / ap11` | Rolling out | Verify per tenant |
+| China (`cn40`) | Not GA | UI5 chat shell + Work Zone tile |
+| NS2 | Not GA | Custom UI shell |
+| KSA non-regulated | Not GA | UI5 chat shell |
+| KSA regulated | Verify per tenant (AI Core available) | — |
 
 ---
 
@@ -730,6 +860,24 @@ app.add_middleware(CORSMiddleware,
 
 ---
 
+## 6a. Alternative Runtime: Kyma
+
+Cloud Foundry is the default above, but the same A2A agent runs unchanged on
+**Kyma** (BTP's managed Kubernetes) — the container and code are identical; only
+the deployment descriptor changes. Choose Kyma when the customer standardises on
+Kubernetes, needs finer scaling/networking control, or CF isn't their runtime.
+
+- **Packaging** — build the agent as a container image; deploy with a Helm chart (Deployment + Service + APIRule to expose the route) or Kustomize overlays per environment.
+- **Config & secrets** — the same variables from [§1a](#1a-model-provider-isolation) / Mode C map to a ConfigMap (non-secret) and a Secret (credentials); mount them as env vars. Never bake secrets into the image.
+- **Health check** — point the readiness/liveness probe at `/.well-known/agent.json`, same as the CF health check.
+- **Route** — an APIRule (or Gateway/VirtualService) publishes the public agent URL that Joule and clients call.
+
+Everything else in this blueprint — connectivity modes, auth, resilience,
+observability, Joule registration — is identical on Kyma. The only hard hosting
+requirement for any deployment is a subaccount with **Cloud Foundry or Kyma**.
+
+---
+
 ## 7. Registering with Joule Studio
 
 ### BTP prerequisites
@@ -774,6 +922,51 @@ Some subaccounts have a `jouleautomation-srv` CF app that handles registration p
 - Start it: `cf start jouleautomation-srv` (requires space memory quota)
 - It reads agent card URLs from config and registers them with Joule automatically
 - Memory quota issues: stop unused apps or request quota increase from space admin
+
+### CLI-driven capability deployment (Joule Studio CLI)
+
+Beyond the admin UI, Joule Studio supports deploying the agent as a **capability
+bundle** via the Joule Studio CLI plus a native BTP destination. This is the
+scriptable, repeatable path (and what CI/CD uses).
+
+**Prerequisites:** agent already deployed; BTP roles `extensibility_developer` +
+`capabilityadmin`; the Joule Studio CLI (`npm install -g @sap/joule-studio-cli`
+— note `@sap/joule-cli` 404s, use `@sap/joule-studio-cli`); `joule login`
+succeeded (the App2App IAS flow must be configured on the subaccount); a BTP
+Destination service available; tenant on a current Joule capability schema
+(DTA schema **3.28.0+**).
+
+**Two descriptors** (generated into `joule-capability/` by the scaffold's default
+profile):
+- `capability.sapdas.yaml` — capability metadata + system aliases. The destination `ALIAS_NAME` must match `system_aliases.<AliasName>.destination`.
+- `da.sapdas.yaml` — the top-level deployment descriptor passed to `joule deploy`.
+
+**Create the destination, then deploy:**
+
+```bash
+# 1. Create a native BTP HTTP destination pointing at the deployed agent route.
+#    (NoAuthentication for the destination itself; the agent enforces its own auth.)
+
+# 2. Compile + publish the capability bundle:
+cd <agent-name>/joule-capability
+joule deploy ./da.sapdas.yaml --compile -n "<assistant_name>"
+```
+
+**Verify:**
+
+```bash
+curl -s https://<agent-route>/.well-known/agent.json | jq .name
+# Then send a matching prompt in the Joule UI and confirm the task arrived:
+cf logs <agent-name> --recent | grep "task received"
+```
+
+**Troubleshooting (common):**
+- `Schema version ... greater than the current schema version of Joule` → tenant DTA schema too old; request a Joule service update.
+- `namespace validation error` → `metadata.namespace` must be `joule.ext`.
+- `401` from Joule → re-run `joule login`; verify `extensibility_developer` + `capabilityadmin`.
+- `joule login` fails → App2App IAS flow not configured for the CLI on the subaccount (a one-time IAS admin action).
+
+**Cleanup:** `joule undeploy <capability-id>`.
 
 ---
 
@@ -955,6 +1148,58 @@ SAP Backend → SAP Event Mesh → Listener App → POST to Agent A2A endpoint
    ```
 
 4. **Configure SAP backend** to publish events (SAP Basis task: `/IWXBE/CONFIG`)
+
+---
+
+## 11. Optional Capabilities
+
+Extend the base agent with additional data sources and knowledge — each is
+opt-in, added behind the same tool boundary, and never required to ship an MVP.
+
+### Knowledge / semantic search (HANA Vector Store — "HVS")
+
+When the agent must answer from documents or policies (not just live
+transactional records), add a vector-search tool backed by SAP HANA Cloud's
+vector engine: embed the source documents, store the vectors in HANA, and expose
+a retrieval tool the agent calls to ground its answers.
+
+```bash
+HANA_HOST=<hana-host>
+HANA_PORT=443
+HANA_USER=<user>
+HANA_PASSWORD=<secret>
+```
+
+Use it for policy Q&A, product/spec lookup, or any retrieval-augmented answer.
+The retrieval tool follows the same interface/mock/live pattern as any other tool.
+
+### SuccessFactors (SF)
+
+Add HR data (e.g. leave balances, org data) by wiring an SF OData tool — same
+pattern as the S/4HANA tool in [§3](#3-connect-sap-data--three-modes):
+
+```bash
+SF_BASE_URL=https://<api-host>/odata/v2
+SF_API_KEY=<or the auth vars your tool needs>
+```
+
+### Other backends
+
+Ariba, Concur, or any HTTP/OData API attach the same way — one tool per backend,
+credentials behind the boundary, mock-first then live. Describe the backend and
+its key entities, and the tool is generated to match.
+
+---
+
+## 12. Reference Agents (worked examples)
+
+Two end-to-end examples show the full scaffold → connect → run shape:
+
+- **Supply Chain Risk Agent** — full-stack agent that reads live S/4HANA data (purchase orders, business partners), fetches supplier news via an external API, and synthesises a risk briefing with Claude via AI Core. Thread-based UI with real-time tool-call progress, structured risk cards, and charts. A good pattern source for a live S/4HANA tool.
+- **Service Technician Companion** — field-service agent for S/4HANA plant maintenance (equipment, maintenance orders, notifications). Uses the public SAP API Business Hub sandbox, so it runs without a customer tenant — ideal for a no-tenant demo.
+
+Each is self-contained and documents its own run/deploy steps; use them as
+templates when connecting a new domain in [§3](#3-connect-sap-data--three-modes).
 
 ---
 
