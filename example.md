@@ -13,7 +13,7 @@
 > [`README.md`](README.md) — the "boilerplate cookbook." This `example.md`
 > is the *fast, guided path* that applies that blueprint's best practices
 > (auth, resilience, observability, advisory-only governance) for you. You do
-> not have to read README-3 to use this file; the agent consults it.
+> not have to read README to use this file; the agent consults it.
 
 ---
 
@@ -21,7 +21,7 @@
 
 1. Create a **new empty folder**, e.g. `my-agent/`.
 2. Copy these files into that folder: **`example.md`**, **`CLAUDE.md`**, and (if
-   you have it) **`README-3.md`**.
+   you have it) **`README.md`**.
 3. Open the folder in Claude Code.
 4. **Kick it off — two ways, pick either:**
    - **Easiest:** just type **`start`** (or "hi"). The included `CLAUDE.md` is
@@ -50,17 +50,17 @@ That's it.
 > everything in the box and send it as your first message.
 
 ```
-You are my SAP agent build assistant. Read example.md and README-3.md in this
+You are my SAP agent build assistant. Read example.md and README.md in this
 folder and follow them exactly.
 
 Rules you MUST obey:
 - Work ONLY inside this folder. Create a new sub-folder for the agent you build.
-- Do NOT edit, move, rename, or delete example.md, README-3.md, or ANY file
+- Do NOT edit, move, rename, or delete example.md, README.md, or ANY file
   outside the new sub-folder you create. They are read-only references.
 - Do NOT touch or modify any other project or repository on this machine.
 - Never put secrets in code or in these markdown files. All API keys, URLs, and
   credentials go into a .env file that I fill in — you only tell me what to add.
-- Follow the best-practice rules from README-3 (advisory-only: no writes to SAP;
+- Follow the best-practice rules from README (advisory-only: no writes to SAP;
   never fabricate data; financial disclaimer; validate identity; structured logs).
 
 Start by running the INTERVIEW in Section 2 of example.md. Ask me the questions
@@ -124,7 +124,7 @@ need, and tells you to copy it to `.env` and paste your values. **You never put
 secrets in code or in this file.** The agent's tools read them at runtime.
 
 > The agent only lists the variables relevant to *your* answers. Below is the
-> full menu it draws from (from README-3's env reference).
+> full menu it draws from (from README's env reference).
 
 ### Always (model access)
 
@@ -223,8 +223,8 @@ message that **must call the tool** and shows you the real reply.
 - **HVS:** the agent adds a semantic-search tool and proves it with a document question.
 - **SF:** the agent adds an SF tool and proves it (e.g. "leave balance for user Z").
 
-### Gate 5 — Best-practice checks (from README-3, automatic)
-The agent confirms, per README-3:
+### Gate 5 — Best-practice checks (from README, automatic)
+The agent confirms, per README:
 - Advisory-only — **no** POST/PATCH/DELETE to SAP.
 - Never fabricates document numbers/amounts; `top=100` on list calls.
 - Financial outputs end with the standard disclaimer.
@@ -249,7 +249,7 @@ start it again myself, plus one sample question I can ask it.
 ```
 
 If you also chose to deploy to BTP, the agent then walks you through the
-deploy + (optional) Joule steps from README-3 — but **only after** you confirm,
+deploy + (optional) Joule steps from README — but **only after** you confirm,
 and it tells you which additional `.env`/service values are needed first. It will
 not deploy or register anything without your explicit go-ahead.
 
@@ -264,7 +264,7 @@ not deploy or register anything without your explicit go-ahead.
 - Keep all secrets out of code and out of these markdown files.
 
 **Won't:**
-- Edit `example.md`, `README-3.md`, `CLAUDE.md`, or anything outside its sub-folder.
+- Edit `example.md`, `README.md`, `CLAUDE.md`, or anything outside its sub-folder.
 - Touch any other project/repository on your machine.
 - Write to SAP systems (advisory-only), fabricate data, or invent credentials.
 - Deploy, register in Joule, or spend on paid services without your confirmation.
@@ -326,7 +326,7 @@ the relevant gate (mock or live) and show me the result before moving on.
   `live` with the **free api.sap.com sandbox** — same OData shape, no tenant.
 - **I'm in a sovereign region (China / NS2 / KSA).** Choose `openai-compatible`
   in Group C and set the `MODEL_GATEWAY_*` vars; the data path is region-agnostic.
-  See README-3 §D.3.
+  See README §D.3.
 - **Where do I get API keys?** api.sap.com → log in → "Show API Key" (sandbox);
   AI Core / gateway keys come from your BTP service keys or secret store. The
   agent tells you which, per your choices.
@@ -336,6 +336,6 @@ the relevant gate (mock or live) and show me the result before moving on.
 
 ---
 
-*This example applies the principles in [`README-3.md`](README-3.md). If any
-step here and README-3 disagree on an engineering detail, README-3 is the source
+*This example applies the principles in [`README.md`](README.md). If any
+step here and README disagree on an engineering detail, README is the source
 of truth and the agent should follow it.*
