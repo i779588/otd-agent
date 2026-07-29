@@ -1,8 +1,24 @@
-- Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md) | [example.md](example.md) | [CLAUDE.md](CLAUDE.md)]
+- Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md)
+- Guided build: [example.md](example.md) (no-code walkthrough) · [CLAUDE.md](CLAUDE.md) (auto-start for coding harnesses)
+- Main repo: [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/sap-sovereign-ai-coe/Custom-Agentic-solutions-CoE)
+  
+---
 
 # SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Migration Guide
 
 * A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future migration. Two paths, starting with Joule 2.0 build to custom agent developement and productive deployment on Joule Studio, and then in future migrate back.*
+
+## 📌 Read this first
+
+**The [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE) is the main, global repository** for building SAP custom agents — scaffolding, toolkit, recipe checkpoints, connectivity, and deployment.
+
+**This document is the complete build-and-harden guide** and adds the pieces a *customer-ready* agent needs that aren't spelled out there: production hardening (identity propagation, resilience, observability, data governance), the guided no-code build flow, sovereign/regional handling, and Joule 2.0 migration readiness. Use the cookbook to get started; use this guide to build it right and take it to production.
+
+**What's in this file:**
+- **Guided Quick-Start** — the no-code path via [`example.md`](example.md) + [`CLAUDE.md`](CLAUDE.md).
+- **Part A — Build:** landscape, model-provider isolation, road-to-production (observability, governance, security), regional/sovereign, scaffold, connectivity modes, authorization & identity, resilience, system prompts, EDMX pipeline.
+- **Part B — Integrate:** deploy (Cloud Foundry / Kyma), Joule Studio registration, A2A protocols & endpoints.
+- **Part C — Migrate:** Joule 2.0 migration path, event-driven triggers, optional capabilities, reference agents, Quick Reference, and the Agent-PathToProd checklist.
 
 ---
 
@@ -12,6 +28,7 @@ SAP developers building custom AI agents that need to consume SAP data and integ
 - Starting from the Joule Studio scaffold
 - Connecting to SAP APIs via three first-class modes
 - Deploying to Cloud Foundry and registering in Joule Studio
+- Building for regulated regions where Joule BYOA is not yet GA
 - Future migration to Joule 2.0 when available
 
 ---
@@ -133,10 +150,10 @@ anything else.
 ```bash
 LLM_PROVIDER=aicore
 AGENT_MODEL=sap/anthropic--claude-3.5-sonnet     # or your deployed model
-AICORE_CLIENT_ID=<from AI Core service key>
-AICORE_CLIENT_SECRET=<from AI Core service key>
-AICORE_AUTH_URL=<from AI Core service key>
-AICORE_BASE_URL=<from AI Core service key>
+AICORE_CLIENT_ID=<from AI Core service key
+AICORE_CLIENT_SECRET=<from AI Core service key
+AICORE_AUTH_URL=<from AI Core service key
+AICORE_BASE_URL=<from AI Core service key
 AICORE_RESOURCE_GROUP=default
 ```
 
@@ -145,8 +162,8 @@ AICORE_RESOURCE_GROUP=default
 ```bash
 LLM_PROVIDER=openai-compatible
 MODEL_GATEWAY_URL=https://model-gateway.example.com/v1
-MODEL_GATEWAY_API_KEY=<from your secret store>
-MODEL_NAME=<model-deployment-name>
+MODEL_GATEWAY_API_KEY=<from your secret store
+MODEL_NAME=<model-deployment-name
 ```
 
 - The model provider is orthogonal to the SAP connectivity mode. Live business
@@ -237,13 +254,13 @@ you can build customer value now and migrate cleanly later.
 
 ```bash
 # 1. Verify what the region exposes (services, entitlements) before building.
-btp --format json list accounts/entitlement --subaccount <SUBACCOUNT_ID>
+btp --format json list accounts/entitlement --subaccount <SUBACCOUNT_ID
 
 # 2. Scaffold, pointing the model at the approved gateway.
 export LLM_PROVIDER=openai-compatible
 export MODEL_GATEWAY_URL=https://model-gateway.example.com/v1
-export MODEL_GATEWAY_API_KEY=<from-secret-store>
-export MODEL_NAME=<model-deployment-name>
+export MODEL_GATEWAY_API_KEY=<from-secret-store
+export MODEL_NAME=<model-deployment-name
 
 # 3. Build and test in mock mode (offline), then connect live data over OData.
 # 4. Deploy to CF or Kyma; surface via Joule where available, else a UI5 shell.
@@ -267,7 +284,7 @@ Joule availability, summarized (verify per tenant — this moves):
 ### Generate the project skeleton
 
 Generate the project skeleton from Joule 2.0 or use generated accelerator boilerplate that complies to Joule 2.0.
-From inside `assets/<your-agent-name>/`, invoke the bootstrap skill in Joule Studio:
+From inside `assets/<your-agent-name/`, invoke the bootstrap skill in Joule Studio:
 
 ```
 /sap-agent-bootstrap
@@ -275,7 +292,7 @@ From inside `assets/<your-agent-name>/`, invoke the bootstrap skill in Joule Stu
 
 This generates:
 ```
-assets/<agent-name>/
+assets/<agent-name/
 ├── app/
 │   ├── main.py              ← A2A server entry point
 │   ├── agent.py             ← LLM agent + system prompt
@@ -402,7 +419,7 @@ Agent Gateway is a BTP service that acts as a managed proxy between your agent a
 1. Check entitlement: BTP Cockpit → Entitlements → search "agent gateway"
 2. Create instance: `cf create-service agent-gateway standard my-agw`
 3. Get service key: `cf create-service-key my-agw my-agw-key && cf service-key my-agw my-agw-key`
-4. Set in `.env`: `AGW_CREDENTIALS_JSON='<full JSON>'`
+4. Set in `.env`: `AGW_CREDENTIALS_JSON='<full JSON'`
 
 **`mcp_tools.py` uses it automatically:**
 
@@ -450,14 +467,14 @@ cf create-service-key my-conn  my-conn-key  && cf service-key my-conn my-conn-ke
 ```bash
 DEST_CLIENT_ID="..."
 DEST_CLIENT_SECRET="..."
-DEST_AUTH_URL=https://<subaccount>.authentication.<region>.hana.ondemand.com
-DEST_SERVICE_URI=https://destination-configuration.cfapps.<region>.hana.ondemand.com
+DEST_AUTH_URL=https://<subaccount.authentication.<region.hana.ondemand.com
+DEST_SERVICE_URI=https://destination-configuration.cfapps.<region.hana.ondemand.com
 DEST_NAME=MY_SAP_SYSTEM   # name of the destination in BTP Cockpit
 
 CONN_CLIENT_ID="..."
 CONN_CLIENT_SECRET="..."
-CONN_AUTH_URL=https://<subaccount>.authentication.<region>.hana.ondemand.com
-CONN_PROXY_HOST=connectivityproxy.internal.cf.<region>.hana.ondemand.com
+CONN_AUTH_URL=https://<subaccount.authentication.<region.hana.ondemand.com
+CONN_PROXY_HOST=connectivityproxy.internal.cf.<region.hana.ondemand.com
 CONN_PROXY_PORT=20003
 ```
 
@@ -465,20 +482,20 @@ CONN_PROXY_PORT=20003
 
 ```
 Step 1: GET OAuth token from Destination Service
-  POST <DEST_AUTH_URL>/oauth/token (DEST_CLIENT_ID + DEST_CLIENT_SECRET)
+  POST <DEST_AUTH_URL/oauth/token (DEST_CLIENT_ID + DEST_CLIENT_SECRET)
   ↓
-  GET <DEST_SERVICE_URI>/destination-configuration/v1/destinations/<DEST_NAME>
+  GET <DEST_SERVICE_URI/destination-configuration/v1/destinations/<DEST_NAME
   ← Returns: SAP system URL, sap-client, Cloud Connector location ID, pre-built Basic auth header
 
 Step 2: GET OAuth token from Connectivity Service
-  POST <CONN_AUTH_URL>/oauth/token (CONN_CLIENT_ID + CONN_CLIENT_SECRET)
+  POST <CONN_AUTH_URL/oauth/token (CONN_CLIENT_ID + CONN_CLIENT_SECRET)
   ← Returns: proxy_token
 
 Step 3: Call SAP OData via the proxy
-  GET <sap-system-url>/sap/opu/odata/...
-    Authorization: Basic <from Step 1>
-    Proxy-Authorization: Bearer <proxy_token>
-    SAP-Connectivity-SCC-Location_ID: <from Step 1>
+  GET <sap-system-url/sap/opu/odata/...
+    Authorization: Basic <from Step 1
+    Proxy-Authorization: Bearer <proxy_token
+    SAP-Connectivity-SCC-Location_ID: <from Step 1
   → connectivityproxy.internal.cf...:20003
   → Cloud Connector → SAP backend
 ```
@@ -589,7 +606,7 @@ Bind an XSUAA instance so the agent can validate incoming JWTs and (optionally) 
     { "name": "AgentUser", "scope-references": ["$XSAPPNAME.Invoke"] }
   ],
   "oauth2-configuration": {
-    "redirect-uris": ["https://my-agent.cfapps.<region>.hana.ondemand.com/**"]
+    "redirect-uris": ["https://my-agent.cfapps.<region.hana.ondemand.com/**"]
   }
 }
 ```
@@ -608,7 +625,7 @@ services:
 # [illustrative] agent_executor.py — reject unauthenticated calls before any tool runs
 # In mock mode (IBD_TESTING=1), skip validation so offline tests/demos still work.
 if os.environ.get("IBD_TESTING") != "1":
-    token = _bearer_from_headers(request.headers)          # Authorization: Bearer <jwt>
+    token = _bearer_from_headers(request.headers)          # Authorization: Bearer <jwt
     claims = validate_xsuaa_jwt(token)                     # verify signature, audience, scope
     # carry user identity into tool calls for principal propagation
     request_ctx.user_token = token
@@ -720,7 +737,7 @@ When the user asks about [domain], query [entity set] filtering by [key field].
 The financial fields to always include are: [list fields confirmed from entity probe].
 ```
 
-- `<to be updated>` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
+- `<to be updated` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
 
 ---
 
@@ -732,11 +749,11 @@ The same three-script pipeline applies whether you're working in Joule Studio or
 
 ```bash
 # Get your API key: https://api.sap.com → log in → "Show API Key" (top right)
-export SAP_API_HUB_KEY=<your-key>
+export SAP_API_HUB_KEY=<your-key
 python3 scripts/fetch_edmx.py
 ```
 
-What it does: downloads `.edmx` files for each API to `specification/<agent>/api-specs/`. Uses `APIKey:` header authentication — no browser login needed.
+What it does: downloads `.edmx` files for each API to `specification/<agent/api-specs/`. Uses `APIKey:` header authentication — no browser login needed.
 
 To add a new API, add an entry to the `APIS` list in `scripts/fetch_edmx.py`.
 
@@ -756,8 +773,8 @@ In Joule Studio: the `mcp-translation-file` skill performs the same parsing. If 
 ### Step 3: Register in Agent Gateway
 
 ```bash
-export AGW_CREDENTIALS_JSON='<service key JSON>'
-python3 scripts/register_mcp_servers.py --destination <sap-system-destination>
+export AGW_CREDENTIALS_JSON='<service key JSON'
+python3 scripts/register_mcp_servers.py --destination <sap-system-destination
 
 # Verify:
 python3 scripts/register_mcp_servers.py --list
@@ -774,7 +791,7 @@ Before writing tools for an on-premise system, always probe what's actually acce
 
 1. In SAP GUI: open transaction `/IWFND/MAINT_SERVICE`
 2. Find your service → click **SAP Gateway Client**
-3. Test the entity set URL with `?$top=1&$format=json&sap-client=<client>`
+3. Test the entity set URL with `?$top=1&$format=json&sap-client=<client`
 4. Check the response fields — on-prem field names differ from cloud
 
 - If you get `/IWFND/MED/170: No service found` — the service has no System Alias configured. In `/IWFND/MAINT_SERVICE` → select service → Add System Alias → `LOCAL` (for co-hosted systems).
@@ -802,7 +819,7 @@ applications:
       AGENT_MODEL: sap/anthropic--claude-3.5-sonnet
       AICORE_RESOURCE_GROUP: default
       SAP_MODE: gateway    # or: cloud, onprem
-      AGENT_PUBLIC_URL: https://my-agent.cfapps.<region>.hana.ondemand.com
+      AGENT_PUBLIC_URL: https://my-agent.cfapps.<region.hana.ondemand.com
     services:
       - AICore             # SAP AI Core for LLM
       - my-dest            # Destination Service (Mode C only)
@@ -853,9 +870,9 @@ if vcap:
 
 ```bash
 cf login -a https://api.cf.us10.hana.ondemand.com --sso   # ALWAYS --sso, never TOTP
-cd assets/<agent-name>
+cd assets/<agent-name
 cf push
-curl https://my-agent.cfapps.<region>.hana.ondemand.com/.well-known/agent.json
+curl https://my-agent.cfapps.<region.hana.ondemand.com/.well-known/agent.json
 ```
 
 ### Add CORS for browser clients
@@ -903,7 +920,7 @@ requirement for any deployment is a subaccount with **Cloud Foundry or Kyma**.
 In the Joule admin UI:
 1. Navigate to **Settings → External Skills** (or **Agents**)
 2. Click **Register Agent** / **Add External Skill**
-3. Enter agent card URL: `https://my-agent.cfapps.<region>.hana.ondemand.com/.well-known/agent.json`
+3. Enter agent card URL: `https://my-agent.cfapps.<region.hana.ondemand.com/.well-known/agent.json`
 4. Joule fetches the card, reads `skills[].description` and `tags`, registers automatically
 
 ### Joule intent routing
@@ -947,7 +964,7 @@ Destination service available; tenant on a current Joule capability schema
 
 **Two descriptors** (generated into `joule-capability/` by the scaffold's default
 profile):
-- `capability.sapdas.yaml` — capability metadata + system aliases. The destination `ALIAS_NAME` must match `system_aliases.<AliasName>.destination`.
+- `capability.sapdas.yaml` — capability metadata + system aliases. The destination `ALIAS_NAME` must match `system_aliases.<AliasName.destination`.
 - `da.sapdas.yaml` — the top-level deployment descriptor passed to `joule deploy`.
 
 **Create the destination, then deploy:**
@@ -957,14 +974,14 @@ profile):
 #    (NoAuthentication for the destination itself; the agent enforces its own auth.)
 
 # 2. Compile + publish the capability bundle:
-cd <agent-name>/joule-capability
-joule deploy ./da.sapdas.yaml --compile -n "<assistant_name>"
+cd <agent-name/joule-capability
+joule deploy ./da.sapdas.yaml --compile -n "<assistant_name"
 ```
 
 **Verify:**
 
 ```bash
-curl -s https://<agent-route>/.well-known/agent.json | jq .name
+curl -s https://<agent-route/.well-known/agent.json | jq .name
 # Then send a matching prompt in the Joule UI and confirm the task arrived:
 cf logs <agent-name- --recent | grep "task received"
 ```
@@ -975,7 +992,7 @@ cf logs <agent-name- --recent | grep "task received"
 - `401` from Joule → re-run `joule login`; verify `extensibility_developer` + `capabilityadmin`.
 - `joule login` fails → App2App IAS flow not configured for the CLI on the subaccount (a one-time IAS admin action).
 
-**Cleanup:** `joule undeploy <capability-id>`.
+**Cleanup:** `joule undeploy <capability-id`.
 
 ---
 
@@ -997,8 +1014,8 @@ Returns the agent card. Used by Joule, other agents, and automated discovery too
   "method": "message/send",
   "params": {
     "message": {
-      "messageId": "<uuid-required>",
-      "contextId": "<uuid-optional-for-multi-turn>",
+      "messageId": "<uuid-required",
+      "contextId": "<uuid-optional-for-multi-turn",
       "role": "user",
       "parts": [{"kind": "text", "text": "Your query here"}],
       "metadata": {
@@ -1173,10 +1190,10 @@ vector engine: embed the source documents, store the vectors in HANA, and expose
 a retrieval tool the agent calls to ground its answers.
 
 ```bash
-HANA_HOST=<hana-host>
+HANA_HOST=<hana-host
 HANA_PORT=443
-HANA_USER=<user>
-HANA_PASSWORD=<secret>
+HANA_USER=<user
+HANA_PASSWORD=<secret
 ```
 
 Use it for policy Q&A, product/spec lookup, or any retrieval-augmented answer.
@@ -1188,8 +1205,8 @@ Add HR data (e.g. leave balances, org data) by wiring an SF OData tool — same
 pattern as the S/4HANA tool in [§3](#3-connect-sap-data--three-modes):
 
 ```bash
-SF_BASE_URL=https://<api-host>/odata/v2
-SF_API_KEY=<or the auth vars your tool needs>
+SF_BASE_URL=https://<api-host/odata/v2
+SF_API_KEY=<or the auth vars your tool needs
 ```
 
 ### Other backends
