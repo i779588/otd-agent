@@ -1,16 +1,16 @@
-- Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md)
-- Guided build: [example.md](example.md) (no-code walkthrough) · [CLAUDE.md](CLAUDE.md) (auto-start for coding harnesses)
-- Main repo: [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/sap-sovereign-ai-coe/Custom-Agentic-solutions-CoE)
-  
+> Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md)
+> Guided build: [example.md](example.md) (no-code walkthrough) · [CLAUDE.md](CLAUDE.md) (auto-start for coding harnesses)
+> Main repo: [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE)
+
 ---
 
 # SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Migration Guide
 
-* A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future migration. Two paths, starting with Joule 2.0 build to custom agent developement and productive deployment on Joule Studio, and then in future migrate back.*
+*A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future migration. Two paths, starting with a Joule 2.0-ready build for custom agent development and productive deployment on Joule Studio, then migrating to Joule 2.0 in future.*
 
 ## 📌 Read this first
 
-**The [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE) is the main, global repository** for building SAP custom agents — scaffolding, toolkit, recipe checkpoints, connectivity, and deployment.
+**The [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE) is the main repository** for building SAP custom agents — scaffolding, toolkit, recipe checkpoints, connectivity, and deployment.
 
 **This document is the complete build-and-harden guide** and adds the pieces a *customer-ready* agent needs that aren't spelled out there: production hardening (identity propagation, resilience, observability, data governance), the guided no-code build flow, sovereign/regional handling, and Joule 2.0 migration readiness. Use the cookbook to get started; use this guide to build it right and take it to production.
 
@@ -42,8 +42,7 @@ SAP developers building custom AI agents that need to consume SAP data and integ
 
 ## Guided Quick-Start
 
-If you want a working agent fast without writing code, use the guided files that
-ship alongside this blueprint:
+If you want a working agent fast without writing code, use the guided files that ship alongside this blueprint:
 
 | File | Role |
 |---|---|
@@ -53,7 +52,7 @@ ship alongside this blueprint:
 **Steps for the end user:**
 
 1. Create a new empty folder (e.g. `my-agent/`).
-2. Copy `example.md`, `CLAUDE.md`, and (optionally) this `README-2.md` into it.
+2. Copy `example.md`, `CLAUDE.md`, and (optionally) this `README-5.md` into it.
 3. Open the folder in Claude Code.
 4. Type **`start`** (auto-start via `CLAUDE.md`) — or paste the kickoff prompt in `example.md` §1.
 5. Answer the interview questions; paste API values into `.env` when asked.
@@ -117,7 +116,7 @@ These are first-class choices — not a hierarchy. Pick the right one for your c
 | **Agent Gateway** | Cloud-native production, AGW entitled in BTP | `AGW_CREDENTIALS_JSON` |
 | **Direct (Destination + Connectivity)** | On-prem SAP, AGW not available, custom endpoints | `DEST_*` + `CONN_*` vars |
 
-- You can switch modes per-deployment (env var) or per-request (message metadata). Mock always overrides the others.
+> You can switch modes per-deployment (env var) or per-request (message metadata). Mock always overrides the others.
 
 ### Protocol stack
 
@@ -150,10 +149,10 @@ anything else.
 ```bash
 LLM_PROVIDER=aicore
 AGENT_MODEL=sap/anthropic--claude-3.5-sonnet     # or your deployed model
-AICORE_CLIENT_ID=<from AI Core service key
-AICORE_CLIENT_SECRET=<from AI Core service key
-AICORE_AUTH_URL=<from AI Core service key
-AICORE_BASE_URL=<from AI Core service key
+AICORE_CLIENT_ID=<from AI Core service key>
+AICORE_CLIENT_SECRET=<from AI Core service key>
+AICORE_AUTH_URL=<from AI Core service key>
+AICORE_BASE_URL=<from AI Core service key>
 AICORE_RESOURCE_GROUP=default
 ```
 
@@ -162,13 +161,13 @@ AICORE_RESOURCE_GROUP=default
 ```bash
 LLM_PROVIDER=openai-compatible
 MODEL_GATEWAY_URL=https://model-gateway.example.com/v1
-MODEL_GATEWAY_API_KEY=<from your secret store
-MODEL_NAME=<model-deployment-name
+MODEL_GATEWAY_API_KEY=<from your secret store>
+MODEL_NAME=<model-deployment-name>
 ```
 
-- The model provider is orthogonal to the SAP connectivity mode. Live business
-- data is read over plain HTTP/OData against the customer's own system and is
-- region-agnostic — only the *model* endpoint changes when you move providers.
+> The model provider is orthogonal to the SAP connectivity mode. Live business
+> data is read over plain HTTP/OData against the customer's own system and is
+> region-agnostic — only the *model* endpoint changes when you move providers.
 
 ---
 
@@ -180,10 +179,10 @@ Before building, validate these conditions. Discovering them late is expensive.
 
 | Checkpoint | How to verify | Comments |
 |---|---|---|
-| OData Service Usage Clause| `Product Team Gudiance` → [<Gudiance- ](https://help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf)| IMP: Verifiy with global api policy team |
+| OData Service Usage Clause | Product-team guidance → [API Policy PDF](https://help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf) | IMPORTANT: verify with the global API policy team |
 
 
-- Agree the way ahead with the right stakeholders; keep the confirming emails for reference.
+> Agree the way ahead with the right stakeholders; keep the confirming emails for reference.
 
 
 **Recommended for production:**
@@ -254,13 +253,13 @@ you can build customer value now and migrate cleanly later.
 
 ```bash
 # 1. Verify what the region exposes (services, entitlements) before building.
-btp --format json list accounts/entitlement --subaccount <SUBACCOUNT_ID
+btp --format json list accounts/entitlement --subaccount <SUBACCOUNT_ID>
 
 # 2. Scaffold, pointing the model at the approved gateway.
 export LLM_PROVIDER=openai-compatible
 export MODEL_GATEWAY_URL=https://model-gateway.example.com/v1
-export MODEL_GATEWAY_API_KEY=<from-secret-store
-export MODEL_NAME=<model-deployment-name
+export MODEL_GATEWAY_API_KEY=<from-secret-store>
+export MODEL_NAME=<model-deployment-name>
 
 # 3. Build and test in mock mode (offline), then connect live data over OData.
 # 4. Deploy to CF or Kyma; surface via Joule where available, else a UI5 shell.
@@ -284,7 +283,7 @@ Joule availability, summarized (verify per tenant — this moves):
 ### Generate the project skeleton
 
 Generate the project skeleton from Joule 2.0 or use generated accelerator boilerplate that complies to Joule 2.0.
-From inside `assets/<your-agent-name/`, invoke the bootstrap skill in Joule Studio:
+From inside `assets/<your-agent-name>/`, invoke the bootstrap skill in Joule Studio:
 
 ```
 /sap-agent-bootstrap
@@ -292,7 +291,7 @@ From inside `assets/<your-agent-name/`, invoke the bootstrap skill in Joule Stud
 
 This generates:
 ```
-assets/<agent-name/
+assets/<agent-name>/
 ├── app/
 │   ├── main.py              ← A2A server entry point
 │   ├── agent.py             ← LLM agent + system prompt
@@ -312,19 +311,19 @@ These are the **complete and final set** — never add more:
 from sap_cloud_sdk.agent_decorators import agent_config, agent_model, prompt_section
 
 @agent_model(key="config.model", label="LLM Model", description="...")
-def get_model_name() -- str:
+def get_model_name() -> str:
     return os.environ.get("AGENT_MODEL", "sap/anthropic--claude-3.5-sonnet")
 
 @agent_config(key="config.temperature", label="LLM Temperature", description="...")
-def get_temperature() -- float:
+def get_temperature() -> float:
     return 0.0   # temperature only — @agent_config is not general-purpose
 
 @prompt_section(key="prompts.system", label="System Prompt", description="...")
-def get_system_prompt() -- str:
+def get_system_prompt() -> str:
     return "Your domain-specific system prompt here..."
 ```
 
-- ⚠️ `@agent_config` exposes values to the BTP admin UI. All other configuration must be plain Python constants.
+> ⚠️ `@agent_config` exposes values to the BTP admin UI. All other configuration must be plain Python constants.
 
 ### Start with mock mode — always
 
@@ -419,7 +418,7 @@ Agent Gateway is a BTP service that acts as a managed proxy between your agent a
 1. Check entitlement: BTP Cockpit → Entitlements → search "agent gateway"
 2. Create instance: `cf create-service agent-gateway standard my-agw`
 3. Get service key: `cf create-service-key my-agw my-agw-key && cf service-key my-agw my-agw-key`
-4. Set in `.env`: `AGW_CREDENTIALS_JSON='<full JSON'`
+4. Set in `.env`: `AGW_CREDENTIALS_JSON='<full JSON>'`
 
 **`mcp_tools.py` uses it automatically:**
 
@@ -445,7 +444,7 @@ requires:
 
 Use this when Agent Gateway is not available, or for on-premise SAP systems.
 
-- This is a **first-class production mode**, not just a fallback. Set it explicitly with `SAP_MODE`.
+> This is a **first-class production mode**, not just a fallback. Set it explicitly with `SAP_MODE`.
 
 **When to choose this mode:**
 - Agent Gateway not entitled in your BTP subaccount
@@ -467,14 +466,14 @@ cf create-service-key my-conn  my-conn-key  && cf service-key my-conn my-conn-ke
 ```bash
 DEST_CLIENT_ID="..."
 DEST_CLIENT_SECRET="..."
-DEST_AUTH_URL=https://<subaccount.authentication.<region.hana.ondemand.com
-DEST_SERVICE_URI=https://destination-configuration.cfapps.<region.hana.ondemand.com
+DEST_AUTH_URL=https://<subaccount>.authentication.<region>.hana.ondemand.com
+DEST_SERVICE_URI=https://destination-configuration.cfapps.<region>.hana.ondemand.com
 DEST_NAME=MY_SAP_SYSTEM   # name of the destination in BTP Cockpit
 
 CONN_CLIENT_ID="..."
 CONN_CLIENT_SECRET="..."
-CONN_AUTH_URL=https://<subaccount.authentication.<region.hana.ondemand.com
-CONN_PROXY_HOST=connectivityproxy.internal.cf.<region.hana.ondemand.com
+CONN_AUTH_URL=https://<subaccount>.authentication.<region>.hana.ondemand.com
+CONN_PROXY_HOST=connectivityproxy.internal.cf.<region>.hana.ondemand.com
 CONN_PROXY_PORT=20003
 ```
 
@@ -482,25 +481,25 @@ CONN_PROXY_PORT=20003
 
 ```
 Step 1: GET OAuth token from Destination Service
-  POST <DEST_AUTH_URL/oauth/token (DEST_CLIENT_ID + DEST_CLIENT_SECRET)
+  POST <DEST_AUTH_URL>/oauth/token (DEST_CLIENT_ID + DEST_CLIENT_SECRET)
   ↓
-  GET <DEST_SERVICE_URI/destination-configuration/v1/destinations/<DEST_NAME
+  GET <DEST_SERVICE_URI>/destination-configuration/v1/destinations/<DEST_NAME>
   ← Returns: SAP system URL, sap-client, Cloud Connector location ID, pre-built Basic auth header
 
 Step 2: GET OAuth token from Connectivity Service
-  POST <CONN_AUTH_URL/oauth/token (CONN_CLIENT_ID + CONN_CLIENT_SECRET)
+  POST <CONN_AUTH_URL>/oauth/token (CONN_CLIENT_ID + CONN_CLIENT_SECRET)
   ← Returns: proxy_token
 
 Step 3: Call SAP OData via the proxy
-  GET <sap-system-url/sap/opu/odata/...
-    Authorization: Basic <from Step 1
-    Proxy-Authorization: Bearer <proxy_token
-    SAP-Connectivity-SCC-Location_ID: <from Step 1
+  GET <sap-system-url>/sap/opu/odata/...
+    Authorization: Basic <from Step 1>
+    Proxy-Authorization: Bearer <proxy_token>
+    SAP-Connectivity-SCC-Location_ID: <from Step 1>
   → connectivityproxy.internal.cf...:20003
   → Cloud Connector → SAP backend
 ```
 
-- ⚠️ The connectivity proxy hostname only resolves inside Cloud Foundry. All three steps work locally but Step 3 will timeout from a developer laptop.
+> ⚠️ The connectivity proxy hostname only resolves inside Cloud Foundry. All three steps work locally but Step 3 will timeout from a developer laptop.
 
 **Cloud vs on-premise OData paths differ:**
 
@@ -511,7 +510,7 @@ Step 3: Call SAP OData via the proxy
 | FM commitments | `API_FNDSMGMTCMTMTACTLITEM` | `C_PurchaseOrderCommitment` in MM service |
 | Change Records | `CE_CHANGERECORD_0001` | `PLM_ENGINEERING_CHANGE_SRV` (role needed) |
 
-- ⚠️ On-premise entity set names must be discovered, not assumed. Use the SAP Gateway Client (`/IWFND/MAINT_SERVICE` → SAP Gateway Client button) to test paths before coding.
+> ⚠️ On-premise entity set names must be discovered, not assumed. Use the SAP Gateway Client (`/IWFND/MAINT_SERVICE` → SAP Gateway Client button) to test paths before coding.
 
 **Configure as first-class primary via `SAP_MODE`:**
 
@@ -566,7 +565,7 @@ async def get_mcp_tools():
 | **Technical user** | One fixed service account | Batch/event-driven agents, no per-user authorization needed | Simple; but SAP audit log shows the service account, not the end user. No row-level authorization by user. |
 | **Principal propagation** | The actual end user | Interactive agents where SAP authorizations must apply per user | Correct audit trail + row-level security; requires trust config between IAS/XSUAA and the SAP backend. |
 
-- ⚠️ Advisory-only agents (this blueprint's default) still often need **principal propagation** — a user must only *see* data they're authorized to read. A technical user with broad read access can leak data across authorization boundaries even without writing anything.
+> ⚠️ Advisory-only agents (this blueprint's default) still often need **principal propagation** — a user must only *see* data they're authorized to read. A technical user with broad read access can leak data across authorization boundaries even without writing anything.
 
 ### How identity flows (principal propagation)
 
@@ -589,7 +588,7 @@ Cloud Connector → SAP backend   ← SAP sees the real user, applies their role
 | `PrincipalPropagation` | End user (via Cloud Connector) | For on-prem S/4HANA. Requires Cloud Connector system-certificate trust. |
 | `OAuth2ClientCredentials` | Technical client | For AGW / service-to-service, no user context. |
 
-- The three-step auth chain in Mode C assumes `BasicAuthentication` (pre-built Basic header from the destination). For principal propagation, Step 1 returns a destination configured for SAML/X.509 instead of a Basic header, and the user JWT must be forwarded — set the destination `Authentication` accordingly and forward the incoming token.
+> The three-step auth chain in Mode C assumes `BasicAuthentication` (pre-built Basic header from the destination). For principal propagation, Step 1 returns a destination configured for SAML/X.509 instead of a Basic header, and the user JWT must be forwarded — set the destination `Authentication` accordingly and forward the incoming token.
 
 ### `xs-security.json` — what the agent app needs
 
@@ -606,7 +605,7 @@ Bind an XSUAA instance so the agent can validate incoming JWTs and (optionally) 
     { "name": "AgentUser", "scope-references": ["$XSAPPNAME.Invoke"] }
   ],
   "oauth2-configuration": {
-    "redirect-uris": ["https://my-agent.cfapps.<region.hana.ondemand.com/**"]
+    "redirect-uris": ["https://my-agent.cfapps.<region>.hana.ondemand.com/**"]
   }
 }
 ```
@@ -617,7 +616,7 @@ services:
   - my-agent-xsuaa   # cf create-service xsuaa application my-agent-xsuaa -c xs-security.json
 ```
 
-- Role-collection assignment *policy* (who gets `AgentUser`, approval flow) is governed by `guidelines.md` — follow it there; this section covers only the technical wiring.
+> Role-collection assignment *policy* (who gets `AgentUser`, approval flow) is governed by `guidelines.md` — follow it there; this section covers only the technical wiring.
 
 ### Validate the incoming JWT at the A2A boundary
 
@@ -625,13 +624,13 @@ services:
 # [illustrative] agent_executor.py — reject unauthenticated calls before any tool runs
 # In mock mode (IBD_TESTING=1), skip validation so offline tests/demos still work.
 if os.environ.get("IBD_TESTING") != "1":
-    token = _bearer_from_headers(request.headers)          # Authorization: Bearer <jwt
+    token = _bearer_from_headers(request.headers)          # Authorization: Bearer <jwt>
     claims = validate_xsuaa_jwt(token)                     # verify signature, audience, scope
     # carry user identity into tool calls for principal propagation
     request_ctx.user_token = token
 ```
 
-- ⚠️ Never trust `metadata.user` or any client-supplied identity field — always derive identity from the validated JWT. Client metadata (`mock`, `sap_mode`) controls *behavior*, never *authorization*.
+> ⚠️ Never trust `metadata.user` or any client-supplied identity field — always derive identity from the validated JWT. Client metadata (`mock`, `sap_mode`) controls *behavior*, never *authorization*.
 
 ---
 
@@ -680,7 +679,7 @@ async def call_tool_safely(tool, args):
     return ToolError("unavailable", user_msg="SAP data is temporarily unavailable. Please retry shortly.")
 ```
 
-- The agent then folds `ToolError.user_msg` into its answer and appends the standard disclaimer — never the raw exception.
+> The agent then folds `ToolError.user_msg` into its answer and appends the standard disclaimer — never the raw exception.
 
 ---
 
@@ -737,7 +736,7 @@ When the user asks about [domain], query [entity set] filtering by [key field].
 The financial fields to always include are: [list fields confirmed from entity probe].
 ```
 
-- `<to be updated` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
+> `<to be updated>` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
 
 ---
 
@@ -749,11 +748,11 @@ The same three-script pipeline applies whether you're working in Joule Studio or
 
 ```bash
 # Get your API key: https://api.sap.com → log in → "Show API Key" (top right)
-export SAP_API_HUB_KEY=<your-key
+export SAP_API_HUB_KEY=<your-key>
 python3 scripts/fetch_edmx.py
 ```
 
-What it does: downloads `.edmx` files for each API to `specification/<agent/api-specs/`. Uses `APIKey:` header authentication — no browser login needed.
+What it does: downloads `.edmx` files for each API to `specification/<agent>/api-specs/`. Uses `APIKey:` header authentication — no browser login needed.
 
 To add a new API, add an entry to the `APIS` list in `scripts/fetch_edmx.py`.
 
@@ -773,8 +772,8 @@ In Joule Studio: the `mcp-translation-file` skill performs the same parsing. If 
 ### Step 3: Register in Agent Gateway
 
 ```bash
-export AGW_CREDENTIALS_JSON='<service key JSON'
-python3 scripts/register_mcp_servers.py --destination <sap-system-destination
+export AGW_CREDENTIALS_JSON=<service key JSON>
+python3 scripts/register_mcp_servers.py --destination <sap-system-destination>
 
 # Verify:
 python3 scripts/register_mcp_servers.py --list
@@ -791,10 +790,10 @@ Before writing tools for an on-premise system, always probe what's actually acce
 
 1. In SAP GUI: open transaction `/IWFND/MAINT_SERVICE`
 2. Find your service → click **SAP Gateway Client**
-3. Test the entity set URL with `?$top=1&$format=json&sap-client=<client`
+3. Test the entity set URL with `?$top=1&$format=json&sap-client=<client>`
 4. Check the response fields — on-prem field names differ from cloud
 
-- If you get `/IWFND/MED/170: No service found` — the service has no System Alias configured. In `/IWFND/MAINT_SERVICE` → select service → Add System Alias → `LOCAL` (for co-hosted systems).
+> If you get `/IWFND/MED/170: No service found` — the service has no System Alias configured. In `/IWFND/MAINT_SERVICE` → select service → Add System Alias → `LOCAL` (for co-hosted systems).
 
 ---
 
@@ -819,7 +818,7 @@ applications:
       AGENT_MODEL: sap/anthropic--claude-3.5-sonnet
       AICORE_RESOURCE_GROUP: default
       SAP_MODE: gateway    # or: cloud, onprem
-      AGENT_PUBLIC_URL: https://my-agent.cfapps.<region.hana.ondemand.com
+      AGENT_PUBLIC_URL: https://my-agent.cfapps.<region>.hana.ondemand.com
     services:
       - AICore             # SAP AI Core for LLM
       - my-dest            # Destination Service (Mode C only)
@@ -870,9 +869,9 @@ if vcap:
 
 ```bash
 cf login -a https://api.cf.us10.hana.ondemand.com --sso   # ALWAYS --sso, never TOTP
-cd assets/<agent-name
+cd assets/<agent-name>
 cf push
-curl https://my-agent.cfapps.<region.hana.ondemand.com/.well-known/agent.json
+curl https://my-agent.cfapps.<region>.hana.ondemand.com/.well-known/agent.json
 ```
 
 ### Add CORS for browser clients
@@ -920,7 +919,7 @@ requirement for any deployment is a subaccount with **Cloud Foundry or Kyma**.
 In the Joule admin UI:
 1. Navigate to **Settings → External Skills** (or **Agents**)
 2. Click **Register Agent** / **Add External Skill**
-3. Enter agent card URL: `https://my-agent.cfapps.<region.hana.ondemand.com/.well-known/agent.json`
+3. Enter agent card URL: `https://my-agent.cfapps.<region>.hana.ondemand.com/.well-known/agent.json`
 4. Joule fetches the card, reads `skills[].description` and `tags`, registers automatically
 
 ### Joule intent routing
@@ -964,7 +963,7 @@ Destination service available; tenant on a current Joule capability schema
 
 **Two descriptors** (generated into `joule-capability/` by the scaffold's default
 profile):
-- `capability.sapdas.yaml` — capability metadata + system aliases. The destination `ALIAS_NAME` must match `system_aliases.<AliasName.destination`.
+- `capability.sapdas.yaml` — capability metadata + system aliases. The destination `ALIAS_NAME` must match `system_aliases.<AliasName>.destination`.
 - `da.sapdas.yaml` — the top-level deployment descriptor passed to `joule deploy`.
 
 **Create the destination, then deploy:**
@@ -974,16 +973,16 @@ profile):
 #    (NoAuthentication for the destination itself; the agent enforces its own auth.)
 
 # 2. Compile + publish the capability bundle:
-cd <agent-name/joule-capability
-joule deploy ./da.sapdas.yaml --compile -n "<assistant_name"
+cd <agent-name>/joule-capability
+joule deploy ./da.sapdas.yaml --compile -n "<assistant_name>"
 ```
 
 **Verify:**
 
 ```bash
-curl -s https://<agent-route/.well-known/agent.json | jq .name
+curl -s https://<agent-route>/.well-known/agent.json | jq .name
 # Then send a matching prompt in the Joule UI and confirm the task arrived:
-cf logs <agent-name- --recent | grep "task received"
+cf logs <agent-name> --recent | grep "task received"
 ```
 
 **Troubleshooting (common):**
@@ -992,7 +991,7 @@ cf logs <agent-name- --recent | grep "task received"
 - `401` from Joule → re-run `joule login`; verify `extensibility_developer` + `capabilityadmin`.
 - `joule login` fails → App2App IAS flow not configured for the CLI on the subaccount (a one-time IAS admin action).
 
-**Cleanup:** `joule undeploy <capability-id`.
+**Cleanup:** `joule undeploy <capability-id>`.
 
 ---
 
@@ -1014,8 +1013,8 @@ Returns the agent card. Used by Joule, other agents, and automated discovery too
   "method": "message/send",
   "params": {
     "message": {
-      "messageId": "<uuid-required",
-      "contextId": "<uuid-optional-for-multi-turn",
+      "messageId": "<uuid-required>",
+      "contextId": "<uuid-optional-for-multi-turn>",
       "role": "user",
       "parts": [{"kind": "text", "text": "Your query here"}],
       "metadata": {
@@ -1028,7 +1027,7 @@ Returns the agent card. Used by Joule, other agents, and automated discovery too
 }
 ```
 
-- ⚠️ `messageId` is required by the A2A protocol — requests without it return a validation error.
+> ⚠️ `messageId` is required by the A2A protocol — requests without it return a validation error.
 
 ### `POST /` with `message/stream` — SSE streaming
 
@@ -1105,7 +1104,7 @@ Step 3 — Test in Joule 2.0 sandbox (when available)
   Same /.well-known/agent.json, same A2A endpoint
 
 Step 4 — Remove Destination + Connectivity if not needed
-  Once Agent Gateway handles all routing, m06_tools.py
+  Once Agent Gateway handles all routing, mcp_tools.py
   and the 3-step auth chain are optional infrastructure
   Agent code unchanged — just stop binding the services
 
@@ -1190,10 +1189,10 @@ vector engine: embed the source documents, store the vectors in HANA, and expose
 a retrieval tool the agent calls to ground its answers.
 
 ```bash
-HANA_HOST=<hana-host
+HANA_HOST=<hana-host>
 HANA_PORT=443
-HANA_USER=<user
-HANA_PASSWORD=<secret
+HANA_USER=<user>
+HANA_PASSWORD=<secret>
 ```
 
 Use it for policy Q&A, product/spec lookup, or any retrieval-augmented answer.
@@ -1205,8 +1204,8 @@ Add HR data (e.g. leave balances, org data) by wiring an SF OData tool — same
 pattern as the S/4HANA tool in [§3](#3-connect-sap-data--three-modes):
 
 ```bash
-SF_BASE_URL=https://<api-host/odata/v2
-SF_API_KEY=<or the auth vars your tool needs
+SF_BASE_URL=https://<api-host>/odata/v2
+SF_API_KEY=<or the auth vars your tool needs>
 ```
 
 ### Other backends
@@ -1285,18 +1284,8 @@ Automated business trigger?     → Event Mesh listener → POST /
 | **CF** | Cloud Foundry — the BTP runtime the agent deploys to |
 
 ---
-Agent-PathToProd
 
-One master checklist — from zero to Joule-registered production. Each item is tagged:
-
-[code] — Claude Code validates this when generating the agent
-[deploy] — Developer validates this when building/deploying
-
-Each gate must pass before the next stage starts.
-
-
----
-Agent-PathToProd
+## Agent-PathToProd
 
 One master checklist — from zero to Joule-registered production. Each item is tagged:
 
