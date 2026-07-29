@@ -1,8 +1,8 @@
-> Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md) | [example.md](example.md) | [CLAUDE.md](CLAUDE.md)]
+- Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md) | [example.md](example.md) | [CLAUDE.md](CLAUDE.md)]
 
 # SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Migration Guide
 
-*A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future migration. Two paths, starting with Joule 2.0 build to custom agent developement and productive deployment on Joule Studio, and then in future migrate back.*
+* A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future migration. Two paths, starting with Joule 2.0 build to custom agent developement and productive deployment on Joule Studio, and then in future migrate back.*
 
 ---
 
@@ -81,6 +81,15 @@ When the platform matures, replace the model provider, keep the A2A surface, the
 Joule capability files, the tool APIs, the persistence schema, and the regional
 checks.
 
+### Build Joule 2.0-first, fall back to Joule 1.0
+Write the agent against the Joule 2.0-native constructs from day one, and treat Joule 1.0 (Joule Studio) as the fallback path — not the other way round. Concretely, make these your first choice, because they are exactly what Joule 2.0 consumes natively:
+- Agent Gateway as the primary connectivity mode — ORD-registered MCP servers are the Joule 2.0 tool-registration format. Direct (Destination + Connectivity) is the fallback for on-prem / unregistered endpoints. (ORD — Open Resource Discovery — the ID scheme (sap.s4:apiResource:...) used in asset.yaml; the Joule 2.0 registration key)
+- EDMX → MCP translation → ORD (Open Resource Discovery) registration as the primary tool-definition pipeline (§5), so every tool carries a stable ORD ID from the start.
+- asset.yaml ORD IDs authored up front — these are the Joule 2.0 registration keys, so no rework at migration.
+- A2A transport as the only agent surface — native in Joule 2.0, HTTP-wrapped in 1.0.
+
+An agent built this way runs on Joule 1.0 today via the fallbacks (Joule Studio registration, Destination mode where AGW isn't entitled) and migrates to Joule 2.0 with infrastructure changes only — no code changes.
+
 ### Three SAP connectivity modes
 
 These are first-class choices — not a hierarchy. Pick the right one for your context:
@@ -91,7 +100,7 @@ These are first-class choices — not a hierarchy. Pick the right one for your c
 | **Agent Gateway** | Cloud-native production, AGW entitled in BTP | `AGW_CREDENTIALS_JSON` |
 | **Direct (Destination + Connectivity)** | On-prem SAP, AGW not available, custom endpoints | `DEST_*` + `CONN_*` vars |
 
-> You can switch modes per-deployment (env var) or per-request (message metadata). Mock always overrides the others.
+- You can switch modes per-deployment (env var) or per-request (message metadata). Mock always overrides the others.
 
 ### Protocol stack
 
@@ -140,9 +149,9 @@ MODEL_GATEWAY_API_KEY=<from your secret store>
 MODEL_NAME=<model-deployment-name>
 ```
 
-> The model provider is orthogonal to the SAP connectivity mode. Live business
-> data is read over plain HTTP/OData against the customer's own system and is
-> region-agnostic — only the *model* endpoint changes when you move providers.
+- The model provider is orthogonal to the SAP connectivity mode. Live business
+- data is read over plain HTTP/OData against the customer's own system and is
+- region-agnostic — only the *model* endpoint changes when you move providers.
 
 ---
 
@@ -154,10 +163,10 @@ Before building, validate these conditions. Discovering them late is expensive.
 
 | Checkpoint | How to verify | Comments |
 |---|---|---|
-| OData Service Usage Clause| `Product Team Gudiance` → [<Gudiance> ](https://help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf)| IMP: Verifiy with global api policy team |
+| OData Service Usage Clause| `Product Team Gudiance` → [<Gudiance- ](https://help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf)| IMP: Verifiy with global api policy team |
 
 
-> Agree the way ahead with the right stakeholders; keep the confirming emails for reference.
+- Agree the way ahead with the right stakeholders; keep the confirming emails for reference.
 
 
 **Recommended for production:**
@@ -286,19 +295,19 @@ These are the **complete and final set** — never add more:
 from sap_cloud_sdk.agent_decorators import agent_config, agent_model, prompt_section
 
 @agent_model(key="config.model", label="LLM Model", description="...")
-def get_model_name() -> str:
+def get_model_name() -- str:
     return os.environ.get("AGENT_MODEL", "sap/anthropic--claude-3.5-sonnet")
 
 @agent_config(key="config.temperature", label="LLM Temperature", description="...")
-def get_temperature() -> float:
+def get_temperature() -- float:
     return 0.0   # temperature only — @agent_config is not general-purpose
 
 @prompt_section(key="prompts.system", label="System Prompt", description="...")
-def get_system_prompt() -> str:
+def get_system_prompt() -- str:
     return "Your domain-specific system prompt here..."
 ```
 
-> ⚠️ `@agent_config` exposes values to the BTP admin UI. All other configuration must be plain Python constants.
+- ⚠️ `@agent_config` exposes values to the BTP admin UI. All other configuration must be plain Python constants.
 
 ### Start with mock mode — always
 
@@ -419,7 +428,7 @@ requires:
 
 Use this when Agent Gateway is not available, or for on-premise SAP systems.
 
-> This is a **first-class production mode**, not just a fallback. Set it explicitly with `SAP_MODE`.
+- This is a **first-class production mode**, not just a fallback. Set it explicitly with `SAP_MODE`.
 
 **When to choose this mode:**
 - Agent Gateway not entitled in your BTP subaccount
@@ -474,7 +483,7 @@ Step 3: Call SAP OData via the proxy
   → Cloud Connector → SAP backend
 ```
 
-> ⚠️ The connectivity proxy hostname only resolves inside Cloud Foundry. All three steps work locally but Step 3 will timeout from a developer laptop.
+- ⚠️ The connectivity proxy hostname only resolves inside Cloud Foundry. All three steps work locally but Step 3 will timeout from a developer laptop.
 
 **Cloud vs on-premise OData paths differ:**
 
@@ -485,7 +494,7 @@ Step 3: Call SAP OData via the proxy
 | FM commitments | `API_FNDSMGMTCMTMTACTLITEM` | `C_PurchaseOrderCommitment` in MM service |
 | Change Records | `CE_CHANGERECORD_0001` | `PLM_ENGINEERING_CHANGE_SRV` (role needed) |
 
-> ⚠️ On-premise entity set names must be discovered, not assumed. Use the SAP Gateway Client (`/IWFND/MAINT_SERVICE` → SAP Gateway Client button) to test paths before coding.
+- ⚠️ On-premise entity set names must be discovered, not assumed. Use the SAP Gateway Client (`/IWFND/MAINT_SERVICE` → SAP Gateway Client button) to test paths before coding.
 
 **Configure as first-class primary via `SAP_MODE`:**
 
@@ -540,7 +549,7 @@ async def get_mcp_tools():
 | **Technical user** | One fixed service account | Batch/event-driven agents, no per-user authorization needed | Simple; but SAP audit log shows the service account, not the end user. No row-level authorization by user. |
 | **Principal propagation** | The actual end user | Interactive agents where SAP authorizations must apply per user | Correct audit trail + row-level security; requires trust config between IAS/XSUAA and the SAP backend. |
 
-> ⚠️ Advisory-only agents (this blueprint's default) still often need **principal propagation** — a user must only *see* data they're authorized to read. A technical user with broad read access can leak data across authorization boundaries even without writing anything.
+- ⚠️ Advisory-only agents (this blueprint's default) still often need **principal propagation** — a user must only *see* data they're authorized to read. A technical user with broad read access can leak data across authorization boundaries even without writing anything.
 
 ### How identity flows (principal propagation)
 
@@ -563,7 +572,7 @@ Cloud Connector → SAP backend   ← SAP sees the real user, applies their role
 | `PrincipalPropagation` | End user (via Cloud Connector) | For on-prem S/4HANA. Requires Cloud Connector system-certificate trust. |
 | `OAuth2ClientCredentials` | Technical client | For AGW / service-to-service, no user context. |
 
-> The three-step auth chain in Mode C assumes `BasicAuthentication` (pre-built Basic header from the destination). For principal propagation, Step 1 returns a destination configured for SAML/X.509 instead of a Basic header, and the user JWT must be forwarded — set the destination `Authentication` accordingly and forward the incoming token.
+- The three-step auth chain in Mode C assumes `BasicAuthentication` (pre-built Basic header from the destination). For principal propagation, Step 1 returns a destination configured for SAML/X.509 instead of a Basic header, and the user JWT must be forwarded — set the destination `Authentication` accordingly and forward the incoming token.
 
 ### `xs-security.json` — what the agent app needs
 
@@ -591,7 +600,7 @@ services:
   - my-agent-xsuaa   # cf create-service xsuaa application my-agent-xsuaa -c xs-security.json
 ```
 
-> Role-collection assignment *policy* (who gets `AgentUser`, approval flow) is governed by `guidelines.md` — follow it there; this section covers only the technical wiring.
+- Role-collection assignment *policy* (who gets `AgentUser`, approval flow) is governed by `guidelines.md` — follow it there; this section covers only the technical wiring.
 
 ### Validate the incoming JWT at the A2A boundary
 
@@ -605,7 +614,7 @@ if os.environ.get("IBD_TESTING") != "1":
     request_ctx.user_token = token
 ```
 
-> ⚠️ Never trust `metadata.user` or any client-supplied identity field — always derive identity from the validated JWT. Client metadata (`mock`, `sap_mode`) controls *behavior*, never *authorization*.
+- ⚠️ Never trust `metadata.user` or any client-supplied identity field — always derive identity from the validated JWT. Client metadata (`mock`, `sap_mode`) controls *behavior*, never *authorization*.
 
 ---
 
@@ -654,7 +663,7 @@ async def call_tool_safely(tool, args):
     return ToolError("unavailable", user_msg="SAP data is temporarily unavailable. Please retry shortly.")
 ```
 
-> The agent then folds `ToolError.user_msg` into its answer and appends the standard disclaimer — never the raw exception.
+- The agent then folds `ToolError.user_msg` into its answer and appends the standard disclaimer — never the raw exception.
 
 ---
 
@@ -711,7 +720,7 @@ When the user asks about [domain], query [entity set] filtering by [key field].
 The financial fields to always include are: [list fields confirmed from entity probe].
 ```
 
-> `<to be updated>` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
+- `<to be updated>` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
 
 ---
 
@@ -768,7 +777,7 @@ Before writing tools for an on-premise system, always probe what's actually acce
 3. Test the entity set URL with `?$top=1&$format=json&sap-client=<client>`
 4. Check the response fields — on-prem field names differ from cloud
 
-> If you get `/IWFND/MED/170: No service found` — the service has no System Alias configured. In `/IWFND/MAINT_SERVICE` → select service → Add System Alias → `LOCAL` (for co-hosted systems).
+- If you get `/IWFND/MED/170: No service found` — the service has no System Alias configured. In `/IWFND/MAINT_SERVICE` → select service → Add System Alias → `LOCAL` (for co-hosted systems).
 
 ---
 
@@ -883,7 +892,7 @@ requirement for any deployment is a subaccount with **Cloud Foundry or Kyma**.
 ### BTP prerequisites
 
 1. **JouleAdmin role collection** assigned to your user:
-   > BTP Cockpit → Security → Role Collections → `JouleAdmin` → Users → Add
+   - BTP Cockpit → Security → Role Collections → `JouleAdmin` → Users → Add
 
 2. **das-ias IAS tenant account** — Joule uses its own IAS tenant, separate from BTP SSO:
    - Try **Forgot Password** on the Joule login page — if no email arrives, your account doesn't exist in das-ias
@@ -957,7 +966,7 @@ joule deploy ./da.sapdas.yaml --compile -n "<assistant_name>"
 ```bash
 curl -s https://<agent-route>/.well-known/agent.json | jq .name
 # Then send a matching prompt in the Joule UI and confirm the task arrived:
-cf logs <agent-name> --recent | grep "task received"
+cf logs <agent-name- --recent | grep "task received"
 ```
 
 **Troubleshooting (common):**
@@ -1002,7 +1011,7 @@ Returns the agent card. Used by Joule, other agents, and automated discovery too
 }
 ```
 
-> ⚠️ `messageId` is required by the A2A protocol — requests without it return a validation error.
+- ⚠️ `messageId` is required by the A2A protocol — requests without it return a validation error.
 
 ### `POST /` with `message/stream` — SSE streaming
 
@@ -1126,7 +1135,7 @@ SAP Backend → SAP Event Mesh → Listener App → POST to Agent A2A endpoint
      }
    }'
    ```
-   > ⚠️ Never run `cf update-service` on a shared Event Mesh instance — it affects all bindings. Always create a dedicated instance.
+   - ⚠️ Never run `cf update-service` on a shared Event Mesh instance — it affects all bindings. Always create a dedicated instance.
 
 2. **Create queue + topic subscription** in Event Mesh dashboard (BTP Cockpit)
 
