@@ -1054,6 +1054,11 @@ async for event in graph.astream_events(..., version="v2"):
 
 A self-contained HTML file served directly by the agent for human-readable testing. **Low priority** — build last, use primarily for demos and manual testing. The real interface is the A2A endpoint.
 
+⚠️ Embedding the /ui HTML/JS in a Python string — avoid the silent-failure traps (any Python version):
+
+> 1. Don't rely on Python's backslash handling in embedded JS. \n, \, \|, \s, \d in a normal string are invalid escape sequences — a DeprecationWarning on Python 3.6+, and silent mangling / hard error on 3.12→3.14 — so JS regex like s.replace(/\n/g,'
+') arrives garbled and throws a silent parse error that kills the whole
+
 ### Future: `/v1/chat/completions` — OpenAI-compatible
 
 For clients using the OpenAI SDK. Not currently exposed by the bootstrap. Add as a thin wrapper around the agent's `invoke()` method when needed.
