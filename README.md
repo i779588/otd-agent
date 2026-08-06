@@ -1,7 +1,7 @@
 > Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md)
 > Guided build: [example.md](example.md) (no-code walkthrough) · [CLAUDE.md](CLAUDE.md) (auto-start for coding harnesses)
 > Main repo: [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE)
-
+> Program & governance reference: [GDH-AIFactory Agent Program](https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/) — agent lifecycle, customer onboarding, architecture reference, and the vendor-neutral agentic-AI development guide.
 ---
 
 # SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Migration Guide
@@ -14,11 +14,20 @@
 
 **This document is the complete build-and-harden guide** and adds the pieces a *customer-ready* agent needs that aren't spelled out there: production hardening (identity propagation, resilience, observability, data governance), the guided no-code build flow, sovereign/regional handling, and Joule 2.0 migration readiness. Use the cookbook to get started; use this guide to build it right and take it to production.
 
+**For program-level governance and lifecycle, refer to the [GDH-AIFactory Agent Program](https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/).** Where the CoE cookbook (above) is the *build engine* and this document is the *hardening guide*, the Agent Program is the *governance and process wrapper* around them. Refer to it when you need:
+
+- **Agent development lifecycle** — the end-to-end Ideation → Design → Build → Validate → Deploy flow, with intentional feedback loops from security review and UAT back to development.
+- **Customer onboarding runbook** — the 7-step process (Repo & permissions → JIRA → Questionnaire → BTP provisioning → Hyperspace enablement → Sample deployment → Standards/Security/AI-Ethics review) for onboarding a new customer consistently across many engagements.
+- **Architecture reference** — curated summaries of the SAP Architecture Center reference architectures (A2A/MCP interoperability, pro-code agents, Joule integration, structured-data agents, agent identity).
+- **Vendor-neutral development guide** — a conceptual agentic-AI primer (ReAct loop, context engineering, task decomposition, the four design patterns, memory, guardrails, evaluation, latency and cost management, security).
+- **Skills catalogue** — a browsable index of the reusable `sap-*` skills, kept in sync with the source skills repository.
+In short: **the Agent Program governs *how the engagement runs*; this guide governs *how the agent is built*.** They are complementary layers — the Agent Program does not scaffold or deploy agents itself, and this guide does not define the customer onboarding or review gates.
+
 **What's in this file:**
 - **Guided Quick-Start** — the no-code path via [`example.md`](example.md) + [`CLAUDE.md`](CLAUDE.md).
 - **Part A — Build:** landscape, model-provider isolation, road-to-production (observability, governance, security), regional/sovereign, scaffold, connectivity modes, authorization & identity, resilience, system prompts, EDMX pipeline.
 - **Part B — Integrate:** deploy (Cloud Foundry / Kyma), Joule Studio registration, A2A protocols & endpoints.
-- **Part C — Migrate:** Joule 2.0 migration path, event-driven triggers, optional capabilities, reference agents, Quick Reference, and the Agent-PathToProd checklist.
+- **Part C — Migrate:** Joule 1.0 → 2.0 migration — custom-code readiness, system landscape, and the migration service model (standard / Business AI Architect advisory) — plus event-driven triggers, optional capabilities, reference agents, Quick Reference, and the Agent-PathToProd checklist.
 
 ---
 
@@ -1070,8 +1079,132 @@ For composability — other agents or LLM applications can call your agent as a 
 # Part C — Future Migration to Joule 2.0
 
 ## 9. Joule 2.0 Migration Path
+Migrating a Joule 1.0 (Joule Studio) custom agent to Joule 2.0 is best treated as three formal concerns, in order: **(9.1)** getting your 1.0 custom code into a migration-ready state, **(9.2)** understanding the system landscape the migration moves through, and **(9.3)** choosing the migration service model — standard or the new advisory service. The "what changes / what does not / step-by-step" material that follows in [§9.4](#94-what-changes-in-joule-20) is the technical detail behind these three concerns.
 
-### What changes in Joule 2.0
+___
+
+### 9.1 Custom code readiness during Joule 1.0
+
+Before any migration begins, harden the 1.0 agent so it is *already* in the shape
+Joule 2.0 consumes. An agent built to this guide's Part A is largely there; use
+this as the explicit pre-migration gate.
+
+**Readiness checklist — confirm on the 1.0 agent:**
+
+| Area | 2.0-ready state (target) | Why it matters for migration |
+|---|---|---|
+| **Transport** | Agent exposes A2A only (`/.well-known/agent.json` + `POST /`); no bespoke HTTP surface | A2A is native in 2.0 — a clean A2A surface migrates with no rewrite |
+| **Tool registration** | Every tool carries a stable **ORD ID** in `asset.yaml`; tools registered via EDMX → MCP → ORD ([§5](#5-edmx-download-translation-and-registration)) | `asset.yaml` ORD IDs *are* the 2.0 registration key — no re-authoring |
+| **Model access** | Isolated behind `LLM_PROVIDER` (`aicore` \| `openai-compatible`) ([§1a](#1a-model-provider-isolation)) | 2.0 / BAIP model swap is config-only |
+| **Connectivity** | Agent Gateway (Mode B) as primary; Direct/Destination (Mode C) only where AGW isn't entitled | 2.0 standardises on AGW; Destination remains a valid fallback, not a blocker |
+| **Identity** | JWT validated at the A2A boundary; identity never taken from client metadata ([§3a](#3a-authorization--identity-propagation---decide-whose-identity-reaches-the-sap-backend-before-you-build)) | 2.0 hosts the agent inside Joule — identity contract must already be correct |
+| **State** | Conversation state externally persisted, keyed by `contextId` + user identity | Native hosting must not assume in-process memory |
+| **Advisory & governance** | No `POST`/`PATCH`/`DELETE`; `top=100`; never fabricate; disclaimer on financial output | Governance rules are code-level and carry across unchanged |
+| **Tests** | Mock mode (`IBD_TESTING=1`) fully offline; coverage ≥ 70%; golden-set eval passes | Green tests are the migration regression baseline |
+
+> **Rule of thumb:** if the 1.0 agent passes Stages 1–4 and Stage 8 of the
+> [Agent-PathToProd](#agent-pathtoprod) checklist, its *custom code* is
+> migration-ready. What remains is landscape and service model, below — **not code**.
+
+**Anti-patterns to remove while still on 1.0** (each becomes a migration blocker):
+
+- Hard-coded model endpoints or SDK calls that bypass `LLM_PROVIDER`.
+- Tools invented ad hoc without an ORD ID / translation file.
+- Identity derived from `metadata.user` or any client-supplied field.
+- Conversation state held in process memory only.
+- Any write-back to SAP (breaks the advisory-only contract 2.0 also expects).
+
+---
+
+### 9.2 System landscape
+
+The migration moves an agent across a defined landscape. Confirm each layer
+exists and is entitled in the **target** subaccount before planning the migration —
+availability differs by region (see [§1c](#1c-regional--sovereign-deployments)).
+
+```
+                 Joule 1.0 (today)                    Joule 2.0 (target)
+                 ─────────────────                    ──────────────────
+Consumer         Joule UI                             Joule UI (unchanged)
+  ↓
+Orchestration    Joule Studio registration            Native Joule agent orchestration
+                 (admin UI / joule CLI)                (agent = first-class Joule skill)
+  ↓
+Agent runtime    Separate CF/Kyma app (A2A over HTTP)  Native-hosted OR same CF/Kyma app
+  ↓                                                    (A2A native in Joule runtime)
+Tool layer       Agent Gateway (ORD/MCP)  ┐            Agent Gateway (standard)
+                 or Destination+Connectivity ┘         Destination path still valid
+  ↓
+Model            AI Core / GenAI Hub                   AI Core / GenAI Hub → BAIP
+                 or approved OpenAI-compatible gateway  (LLM_PROVIDER swap only)
+  ↓
+Data             SAP backend (S/4HANA, SF, …) over     unchanged — region-agnostic
+                 OData; on-prem via Cloud Connector     HTTP/OData path
+  ↓
+Identity         IAS (das-ias) + XSUAA, JWT at A2A     unchanged contract; enforced
+                 boundary                               natively in 2.0 host
+```
+
+**Landscape inventory to capture before migration** (record per target subaccount):
+
+| Layer | What to confirm | How |
+|---|---|---|
+| Runtime | CF **or** Kyma present (never both) | `cf marketplace` / Kyma dashboard |
+| Tool routing | Agent Gateway entitled? | `cf marketplace \| grep agent-gateway` |
+| Model | AI Core available, or approved OpenAI-compatible gateway URL | `btp list accounts/entitlement --subaccount <id>` |
+| Joule | Joule enabled in region; DTA schema **3.28.0+** | `joule status` |
+| Identity | `das-ias` tenant + `JouleAdmin` / `extensibility_developer` / `capabilityadmin` roles | BTP Cockpit → Role Collections |
+| Data residency | AI Core / model region matches SAP system residency | Region check ([§1c](#1c-regional--sovereign-deployments)) |
+| State store | In-memory acceptable, or HANA Cloud for durable state | Requirement-driven |
+
+> In sovereign / regulated regions (China Landing, NS2, KSA), run the region
+> preflight first — Joule and/or AI Core may not be GA, which changes the target
+> landscape (the agent may surface via a UI5 shell rather than the Joule consumer
+> experience). The **code** is unchanged; only the landscape front door differs.
+
+---
+
+### 9.3 Joule 1.0 → 2.0 migration service
+
+Two service models are available for executing the migration. Choose based on
+team capability, risk appetite, and how far the 1.0 agent already meets §9.1.
+
+#### 9.3.1 Standard migration
+
+> **`<Information Awaited>`** — the standard (self-service) migration offering is
+> being finalised. This section will be completed once the standard-service scope,
+> tooling, prerequisites, and SLA are confirmed.
+
+Expected shape (to be confirmed):
+
+- **Model:** self-service, following this guide's [§9.4 migration steps](#94-what-changes-in-joule-20) and the [Agent-PathToProd](#agent-pathtoprod) Stage 8 checklist.
+- **Prerequisites:** 1.0 agent passes the §9.1 readiness gate; target landscape confirmed per §9.2.
+- **Scope:** _`<Information Awaited>`_ — tooling, automated registration path, supported regions, and support boundaries.
+- **When to use:** agent already meets §9.1; team has BTP/Joule operational skills; low-to-standard complexity.
+
+#### 9.3.2 Service — Support & Advisory (new Business AI Architect service)
+
+A guided, expert-led migration for teams that want architectural assurance,
+sovereign-region handling, or a formal readiness review before committing to 2.0.
+
+- **Model:** advisory + hands-on support from the **Business AI Architect** service.
+- **What it covers (indicative):**
+  - **Readiness assessment** — audit the 1.0 agent against the §9.1 checklist; produce a gap list and remediation plan.
+  - **Landscape design** — validate the §9.2 target landscape, including runtime, Agent Gateway, model provider, and identity/trust configuration.
+  - **Sovereign / regulated handling** — model-gateway fallback, region preflight, and UI fallback where Joule isn't GA.
+  - **BAIP-forward architecture** — keep the migration aligned so a later Business AI Platform move is a swap, not a rewrite.
+  - **Guided execution & sign-off** — walk the migration steps with the customer team and validate against Stage 8 of the Agent-PathToProd checklist.
+- **When to use:** high-complexity or mission-critical agents; regulated/sovereign regions; teams new to Joule/BTP operations; or when a formal architectural sign-off is required.
+- **Engagement:** contact the Business AI Architect service to scope the engagement. _(Add the intake link / contact once confirmed.)_
+
+> **Which service?** If the 1.0 agent already passes §9.1 and the target landscape
+> in §9.2 is a standard commercial region, the **standard** path is usually
+> sufficient. Choose the **Support & Advisory** service when the agent is
+> mission-critical, the region is sovereign/regulated, or the team wants an
+> architectural review and formal readiness sign-off before migrating.
+___
+
+### 9.4 What changes in Joule 2.0
 
 Joule 2.0 (roadmap) makes custom agents first-class Joule skills — no separate CF deployment required. The A2A protocol becomes the native communication layer, and `asset.yaml` ORD IDs become the standard registration format.
 
@@ -1082,7 +1215,7 @@ Joule 2.0 (roadmap) makes custom agents first-class Joule skills — no separate
 | Agent Gateway optional | Agent Gateway standard — Destination path still valid |
 | A2A via HTTP | A2A native in Joule runtime |
 
-### What does NOT change
+### 9.5 What does NOT change
 
 **Zero code changes required for migration:**
 - System prompt (`app/agent.py`)
@@ -1091,7 +1224,7 @@ Joule 2.0 (roadmap) makes custom agents first-class Joule skills — no separate
 - Tests — all pass unchanged
 - `asset.yaml` ORD ID format — identical
 
-### Migration steps
+### 9.6 Migration steps
 
 ```
 Step 1 — Verify Agent Gateway registration
@@ -1116,7 +1249,7 @@ Step 5 — Re-register in Joule 2.0 catalog
   ORD IDs in asset.yaml are the registration key
 ```
 
-### Keeping Destination mode in Joule 2.0
+### 9.7 Keeping Destination mode in Joule 2.0
 
 Even in Joule 2.0, the Direct (Destination + Connectivity) mode remains valid for:
 - On-premise systems that aren't registered in Agent Gateway
