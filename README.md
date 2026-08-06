@@ -33,7 +33,7 @@ In short: **the Agent Program governs *how the engagement runs*; this guide gove
 
 ## Disclaimer
 
-While the standard migration functionality will be made available in future, the below is the best attempt for design time of prod code agents to expect least amount of effort during migration
+While the standard migration functionality will be made available in future, the below is the best attempt for design time of pro code agents to expect least amount of effort during migration
 
 ---
 
