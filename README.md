@@ -4,15 +4,15 @@
 > Program & governance reference: [GDH-AIFactory Agent Program](https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/) — agent lifecycle, customer onboarding, architecture reference, and the vendor-neutral agentic-AI development guide.
 ---
 
-# SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Migration Guide
+# SAP Custom Agent Blueprint: Joule Studio Build & Joule 2.0 Switchable Code Guide
 
-*A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future migration. Two paths, starting with a Joule 2.0-ready build for custom agent development and productive deployment on Joule Studio, then migrating to Joule 2.0 in future.*
+*A neutral, reusable blueprint for building SAP AI agents — from first scaffold to production integration and future switchable code. Two paths: **Path 1 — Intent-based new dev in Joule 2.0** and **Path 2 - a Joule 2.0-ready build for custom agent development and productive deployment on Joule Studio, then switchable code that carries over to Joule 2.0 in future.*
 
 ## 📌 Read this first
 
 **The [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE) is the main repository** for building SAP custom agents — scaffolding, toolkit, recipe checkpoints, connectivity, and deployment.
 
-**This document is the complete build-and-harden guide** and adds the pieces a *customer-ready* agent needs that aren't spelled out there: production hardening (identity propagation, resilience, observability, data governance), the guided no-code build flow, sovereign/regional handling, and Joule 2.0 migration readiness. Use the cookbook to get started; use this guide to build it right and take it to production.
+**This document is the complete build-and-harden guide** and adds the pieces a *customer-ready* agent needs that aren't spelled out there: production hardening (identity propagation, resilience, observability, data governance), the guided no-code build flow, sovereign/regional handling, and Joule 2.0 switchable code readiness. Use the cookbook to get started; use this guide to build it right and take it to production.
 
 **For program-level governance and lifecycle, refer to the [GDH-AIFactory Agent Program](https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/).** Where the CoE cookbook (above) is the *build engine* and this document is the *hardening guide*, the Agent Program is the *governance and process wrapper* around them. Refer to it when you need:
 
@@ -27,13 +27,13 @@ In short: **the Agent Program governs *how the engagement runs*; this guide gove
 - **Guided Quick-Start** — the no-code path via [`example.md`](example.md) + [`CLAUDE.md`](CLAUDE.md).
 - **Part A — Build:** landscape, model-provider isolation, road-to-production (observability, governance, security), regional/sovereign, scaffold, connectivity modes, authorization & identity, resilience, system prompts, EDMX pipeline.
 - **Part B — Integrate:** deploy (Cloud Foundry / Kyma), Joule Studio registration, A2A protocols & endpoints.
-- **Part C — Migrate:** Joule 1.0 → 2.0 migration — custom-code readiness, system landscape, and the migration service model (standard / Business AI Architect advisory) — plus event-driven triggers, optional capabilities, reference agents, Quick Reference, and the Agent-PathToProd checklist.
+- **Part C — Migrate:** Joule 1.0 → 2.0 switchable code — custom-code readiness, system landscape, and the migration service model (standard / Business AI Architect advisory) — plus event-driven triggers, optional capabilities, reference agents, Quick Reference, and the Agent-PathToProd checklist.
 
 ---
 
 ## Disclaimer
 
-While the standard migration functionality will be made available in future, the below is the best attempt for design time of pro code agents to expect least amount of effort during migration
+While the standard switchable code functionality will be made available in future, the below is the best attempt for design time of pro code agents to expect least amount of effort during migration
 
 ---
 
@@ -44,7 +44,7 @@ SAP developers building custom AI agents that need to consume SAP data and integ
 - Connecting to SAP APIs via three first-class modes
 - Deploying to Cloud Foundry and registering in Joule Studio
 - Building for regulated regions where Joule BYOA is not yet GA
-- Future migration to Joule 2.0 when available
+- Future switchable code to Joule 2.0 when available
 
 ---
 
@@ -119,7 +119,7 @@ Write the agent against the Joule 2.0-native constructs from day one, and treat 
 - asset.yaml ORD IDs authored up front — these are the Joule 2.0 registration keys, so no rework at migration.
 - A2A transport as the only agent surface — native in Joule 2.0, HTTP-wrapped in 1.0.
 
-An agent built this way runs on Joule 1.0 today via the fallbacks (Joule Studio registration, Destination mode where AGW isn't entitled) and migrates to Joule 2.0 with infrastructure changes only — no code changes.
+An agent built this way runs on Joule 1.0 today via the fallbacks (Joule Studio registration, Destination mode where AGW isn't entitled) and switchable code to Joule 2.0 with infrastructure changes only — no code changes.
 
 ### Three SAP connectivity modes
 
@@ -1084,8 +1084,9 @@ For composability — other agents or LLM applications can call your agent as a 
 
 # Part C — Future Migration to Joule 2.0
 
-## 9. Joule 2.0 Migration Path
-Migrating a Joule 1.0 (Joule Studio) custom agent to Joule 2.0 is best treated as three formal concerns, in order: **(9.1)** getting your 1.0 custom code into a migration-ready state, **(9.2)** understanding the system landscape the migration moves through, and **(9.3)** choosing the migration service model — standard or the new advisory service. The "what changes / what does not / step-by-step" material that follows in [§9.4](#94-what-changes-in-joule-20) is the technical detail behind these three concerns.
+## 9. Joule 2.0 Switchable Code Path
+
+Migrating a Joule 1.0 (Joule Studio) custom agent to Joule 2.0 is best treated as three formal concerns, in order: **(9.1)** getting your 1.0 custom code into a swichable code-ready state, **(9.2)** understanding the system landscape the switchable code moves through, and **(9.3)** choosing the migration service model — standard or the new advisory service. The "what changes / what does not / step-by-step" material that follows in [§9.4](#94-what-changes-in-joule-20) is the technical detail behind these three concerns.
 
 ___
 
@@ -1097,7 +1098,7 @@ this as the explicit pre-migration gate.
 
 **Readiness checklist — confirm on the 1.0 agent:**
 
-| Area | 2.0-ready state (target) | Why it matters for migration |
+| Area | 2.0-ready state (target) | Why it matters for switchable code |
 |---|---|---|
 | **Transport** | Agent exposes A2A only (`/.well-known/agent.json` + `POST /`); no bespoke HTTP surface | A2A is native in 2.0 — a clean A2A surface migrates with no rewrite |
 | **Tool registration** | Every tool carries a stable **ORD ID** in `asset.yaml`; tools registered via EDMX → MCP → ORD ([§5](#5-edmx-download-translation-and-registration)) | `asset.yaml` ORD IDs *are* the 2.0 registration key — no re-authoring |
@@ -1110,9 +1111,9 @@ this as the explicit pre-migration gate.
 
 > **Rule of thumb:** if the 1.0 agent passes Stages 1–4 and Stage 8 of the
 > [Agent-PathToProd](#agent-pathtoprod) checklist, its *custom code* is
-> migration-ready. What remains is landscape and service model, below — **not code**.
+> switchable code-ready. What remains is landscape and service model, below — **not code**.
 
-**Anti-patterns to remove while still on 1.0** (each becomes a migration blocker):
+**Anti-patterns to remove while still on 1.0** (each becomes a switchable-code blocker):
 
 - Hard-coded model endpoints or SDK calls that bypass `LLM_PROVIDER`.
 - Tools invented ad hoc without an ORD ID / translation file.
@@ -1124,8 +1125,8 @@ this as the explicit pre-migration gate.
 
 ### 9.2 System landscape
 
-The migration moves an agent across a defined landscape. Confirm each layer
-exists and is entitled in the **target** subaccount before planning the migration —
+The switchable-code moves an agent across a defined landscape. Confirm each layer
+exists and is entitled in the **target** subaccount before planning the switchable code —
 availability differs by region (see [§1c](#1c-regional--sovereign-deployments)).
 
 ```
@@ -1223,14 +1224,14 @@ Joule 2.0 (roadmap) makes custom agents first-class Joule skills — no separate
 
 ### 9.5 What does NOT change
 
-**Zero code changes required for migration:**
+**Zero code changes required for switchable code:**
 - System prompt (`app/agent.py`)
 - Tool adapters (`app/tools/*.py`)
 - Business logic (`app/logic/*.py`)
 - Tests — all pass unchanged
 - `asset.yaml` ORD ID format — identical
 
-### 9.6 Migration steps
+### 9.6 Switchable code steps
 
 ```
 Step 1 — Verify Agent Gateway registration
@@ -1497,7 +1498,7 @@ Stage 7 — Production readiness sign-off
 [ ] [deploy] Incident response contacts known (Basis for 403s, SCC admin for proxy)
 [ ] [deploy] Event Mesh listener deployed if event-driven triggers needed
 
-Stage 8 — Joule 2.0 migration readiness
+Stage 8 — Joule 2.0 switchable-code readiness
 [ ] [deploy] AGW registration verified: scripts/register_mcp_servers.py --list
 [ ] [deploy] asset.yaml ORD IDs correct — no code changes needed for Joule 2.0
 [ ] [deploy] Agent tested against Joule 2.0 sandbox when available
