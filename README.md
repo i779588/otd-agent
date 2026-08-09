@@ -1505,4 +1505,7 @@ Stage 8 — Joule 2.0 switchable-code readiness
 [ ] [deploy] Destination + Connectivity kept/removed based on AGW coverage
 
 ---
+Coding Checklist (Draft)
+<img width="1601" height="900" alt="image" src="https://github.tools.sap/user-attachments/assets/da79ffe9-b01d-4e67-a85b-5bc815aa06f4" />
+
 ---
