@@ -1,0 +1,392 @@
+# Custom Agent Governance & Architecture
+
+**Owner:** APAC GDH Data & AI Architecture Group
+**Audience:** Solution Architects, Delivery Consultants, Engagement Managers, AI Champions, Account Teams, SAP Developers
+**Status:** Rollout-ready — **Primary reference document**
+**Version:** 1.0 · **Effective:** 2026-08-11 · **Review cadence:** Quarterly
+**Category:** Code-Based Agents — Governance & Architecture
+**Questions / feedback:** APAC GDH Data & AI Architecture Group
+
+---
+
+## How to Use This Document
+
+This is the **primary entry point** for custom AI agent work in the APAC region. It carries a reader through three states — from thinking about an agent, to designing it, to building it — and hands off to the detailed technical guides at the right moment.
+
+```
+   ADVISORY                 TECHNICAL WORKBOOK              DEVELOPMENT
+   (this document)          (Design + Build narratives)     (build engine + hardening)
+   ─────────────            ──────────────────────────      ──────────────────────────
+   Should we build?         How will it be architected?     Build it, harden it, ship it.
+   Which repo/service?      What decisions must we make?     Joule Cookbook + PathToProd
+   L0-1 → L0-10 gates       Design & Build narratives        checklist, deploy, register
+```
+
+The document does not replace the build guides — it **governs and routes into them**. The detailed engineering material lives in the linked guides ([§13](#13-linked-guides--where-the-detail-lives)); this document tells you *when to engage, what to decide, and which gates to clear*.
+
+### Where am I? — the engagement journey
+
+| Stage | You are here when… | Exit criteria (move to next) | Primary owner |
+|---|---|---|---|
+| **1. Advisory** | Evaluating a custom AI opportunity; unsure of approach, repo, or feasibility. | Repository & service model selected; L0-1 onboarding cleared; executive/architecture sponsorship confirmed. | Data & AI Architecture Group |
+| **2. Technical Workbook** | Approach agreed; now making architecture decisions and shaping the build. | Design Narrative signed off; Build Narrative sequenced; L0 gates for design/grounding/security reviewed. | Solution Architect + Architecture Group |
+| **3. Development** | Decisions locked; hands-on build, harden, deploy, register. | Agent passes production readiness and go-live gates (L0-6, L0-7); registered in Joule. | SAP Developer / Delivery team |
+
+> The Architecture Group provides guidance, review, and sign-off across **all three** stages — it is a horizontal enabler, not a stage owner that hands off and disappears.
+
+### Roles & Responsibilities
+
+This document serves several roles. Each has a distinct part in the journey — find your lane below.
+
+| Role | What you do with this document | Primary stage |
+|---|---|---|
+| **Account Teams / AEs** | Identify the opportunity, secure the executive sponsor (CIO/CDO), position the engagement, and confirm reference willingness. Hand the technical scope to architects. You open the door; you do not clear L0 gates. | Advisory |
+| **AI Champions** (per Market Unit) | First-line intake and triage of agent ideas; run or point customers to Idea-to-Value discovery; coordinate locally and escalate complex architecture needs to the Group. Drive local adoption once live. | Advisory → Development |
+| **Solution Architects** | Own the Design Narrative — make the core architecture decisions ([§9](#9-technical-workbook--design-narrative)), select the repository, and shepherd the L0 gates with the Group. | Technical Workbook |
+| **Engagement Managers** | Sequence the Build Narrative, track the gates as milestones, and own delivery governance across the engagement. | Workbook → Development |
+| **SAP Developers / Delivery** | Execute the Build Narrative — scaffold, connect, harden, deploy, register — against the linked build guides and the Agent-PathToProd checklist. | Development |
+| **Data & AI Architecture Group** | Provide guidance, architecture/governance review, and L0 sign-off across all stages. The horizontal enabler. | All stages |
+
+---
+
+## 1. Overview
+
+As adoption of Agentic AI accelerates, organisations require more than development frameworks alone. Successful AI solutions must be **secure, scalable, compliant, maintainable, and aligned with enterprise architecture standards**.
+
+The **Data & AI Architecture Group** provides architecture guidance, governance frameworks, reference architectures, and implementation best practices to support the successful design, deployment, and operation of custom AI agents.
+
+Our objective is to help teams move **from experimentation to enterprise-grade production deployments** through consistent architecture patterns, governance controls, and reusable accelerators.
+
+> This document is the formal reference for how custom AI agents are architected, governed, and taken to production across the APAC region. It centres on the **Agent Governance Framework (L0-1 → L0-10)** — the mandatory review checklist that every custom agent initiative must satisfy before go-live — and routes builders into the **Technical Workbook** and **Development** guides that execute against those gates.
+
+---
+
+## 2. Our Mission
+
+The mission of the Data & AI Architecture Group is to establish a **scalable and governed approach to custom agent development**. We support teams by:
+
+- Defining architecture standards and reference patterns
+- Providing governance frameworks and review processes
+- Recommending appropriate implementation approaches
+- Supporting architecture assessments and solution design
+- Accelerating adoption through reusable assets and accelerators
+- Promoting production-ready AI delivery practices
+- Enabling secure and responsible AI adoption at scale
+
+Our role is to ensure that custom AI solutions are **designed, built, and operated in a secure, scalable, and maintainable manner**. We complement existing development frameworks by providing governance, architecture guidance, and production-readiness validation — we do not replace the build frameworks; we govern them.
+
+---
+
+## 3. Where This Sits in the Architecture Group
+
+The Custom Agent Governance & Architecture practice is one pillar of the broader Data & AI Architecture Group. For context, the Group operates as a horizontal centre of excellence across five service areas:
+
+| Service Pillar | Focus |
+|---|---|
+| **Strategic Customer Solutioning** | Data Architect Program — trusted advisor across the full customer value journey (BDC). |
+| **Agentic AI Design & Implementation** | Business AI Architect Program, Idea-To-Value Service, Governance Frameworks. |
+| **AI Champions Support & Agent Deployment** | AI Champions Collaboration, Architecture Boards, Pro-Code Sprints, Agent Migration Service. |
+| **AI Experience Labs** | Agentic AI Experience Center, live agent demos, "Hackathon in a Day". |
+| **Reusable Accelerators & Working Agents** | Pro-Code accelerators, boilerplates, BDC starter kits, pattern libraries. |
+
+This document lives within **Agentic AI Design & Implementation** and **AI Champions Support & Agent Deployment**, and depends on the **Reusable Accelerators** library for its reference assets.
+
+---
+
+## 4. Available Development Repositories
+
+Several development repositories are available for custom agent development. Each addresses different requirements and should be selected based on **business objectives, data characteristics, integration requirements, and deployment constraints**.
+
+### 4.1 Custom-Agentic-Solutions-CoE
+
+**Purpose:** A general-purpose framework designed to accelerate the development and deployment of custom agents on SAP BTP. This is the **main, global build engine** — scaffolding, toolkit, connectivity, and deployment.
+
+| Attribute | Detail |
+|---|---|
+| **Key capabilities** | Agent scaffolding · SAP BTP deployment · Joule integration · Cloud Foundry deployment · Kyma deployment · Sovereign region support · SAP API integrations · End-to-end deployment lifecycle support |
+| **Recommended use cases** | General-purpose business agents · SAP application integrations · Rapid prototyping and deployment · Sovereign region deployments · Standard business process automation |
+
+### 4.2 Cookbook-KG-CustomAI
+
+**Purpose:** A specialised framework focused on **Knowledge Graph grounded AI agents** using SAP HANA RDF knowledge graphs.
+
+| Attribute | Detail |
+|---|---|
+| **Key capabilities** | Knowledge graph modelling · Ontology management · Semantic search · Multi-hop reasoning · Structured enterprise data grounding · Enterprise Knowledge Graph alignment |
+| **Recommended use cases** | Knowledge-intensive solutions · Complex enterprise data landscapes · Semantic reasoning scenarios · Relationship-centric data exploration · Knowledge Graph driven agents |
+
+---
+
+## 5. Repository Selection Guidance
+
+Selecting the correct repository is one of the most important architectural decisions in a custom agent initiative. The Architecture Group helps teams evaluate requirements and determine the most suitable implementation approach.
+
+| Scenario | Recommended Repository |
+|---|---|
+| General custom agent development | Custom-Agentic-Solutions-CoE |
+| SAP BTP deployment | Custom-Agentic-Solutions-CoE |
+| Sovereign region deployment | Custom-Agentic-Solutions-CoE |
+| Standard SAP API integrations | Custom-Agentic-Solutions-CoE |
+| Knowledge graph-based solutions | Cookbook-KG-CustomAI |
+| Multi-hop reasoning across enterprise data | Cookbook-KG-CustomAI |
+| Semantic relationship modelling | Cookbook-KG-CustomAI |
+
+> The Architecture Group provides architecture guidance, implementation recommendations, and governance reviews **independently of the selected repository**.
+
+---
+
+## 6. The Governance Layer
+
+While the available repositories provide implementation guidance, **governance remains a critical, separate responsibility**.
+
+Both repositories focus on **how to build** agents. Neither repository provides an independently enforced governance layer covering architecture governance, security, compliance, responsible AI, production readiness, operational resilience, and lifecycle management.
+
+**The Data & AI Architecture Group fills this gap** by providing governance frameworks, review processes, and architecture oversight throughout the agent lifecycle. The governance layer sits *above* the build engine (the Joule Cookbook) and the process wrapper (Agent Program) — see [§13](#13-linked-guides--where-the-detail-lives).
+
+---
+
+## 7. Agent Governance Framework
+
+The Agent Governance Framework provides a **structured review process across the full agent lifecycle**.
+
+### 7.1 Governance Domains
+
+| Domain | Scope |
+|---|---|
+| **Governance & Ownership** | Clear ownership, accountability, and decision-making structures. |
+| **Architecture & Design** | Solution architecture, integration patterns, scalability, and maintainability. |
+| **Grounding & Retrieval Quality** | Validation of RAG, grounding strategies, and knowledge quality. |
+| **Security** | Authentication, authorisation, data protection, and secure design. |
+| **Responsible AI** | Transparency, explainability, bias mitigation, and ethical AI considerations. |
+| **Development & Deployment** | Engineering standards, deployment practices, and quality controls. |
+| **Production Readiness** | Operational readiness, support models, and release validation. |
+| **Operations & Monitoring** | Observability, monitoring, incident management, and support processes. |
+| **Knowledge Management** | Knowledge grounding strategies, data quality, and information governance. |
+| **Change Resilience & Lifecycle Management** | Versioning, drift management, continuous validation, and ongoing optimisation. |
+
+---
+
+## 8. Governance Checklist — L0-1 to L0-10
+
+The following **ten governance gates (L0-1 through L0-10)** form the mandatory review checklist for every custom agent initiative. Each gate must be reviewed and signed off by the Architecture Group before an agent progresses toward production.
+
+### ✅ L0-1 — AI Feature & Agent Onboarding Governance
+1. Idea-to-Value Discovery & Use-Case Validation
+2. Feature Type Classification
+3. Commercial Tier Determination
+4. AI Golden Path
+5. Document AI Commercialization Track
+6. ESCE Support Concept Approval
+7. Onboarding Agent Templates
+
+### ✅ L0-2 — LLM Selection & Benchmarking
+1. Test Data Preparation & Submission
+2. Automated Multi-Model Evaluation
+3. Benchmarking Agent (J1199)
+4. Generative AI Evaluation Roadmap
+5. Results via Helm Dashboard
+6. Ongoing Model Version Re-evaluation
+
+### ✅ L0-3 — Document Grounding & RAG Quality
+1. Document Grounding Setup
+2. Vector Embedding & Retrieval Pipeline
+3. RAG Triad: Context Relevance
+4. RAG Triad: Faithfulness
+5. RAG Triad: Answer Relevance
+6. Prompt Engineering Governance
+7. Automated Grounding Roadmap
+
+### ✅ L0-4 — AI Commercialization & Metering
+1. LLM Calculator
+2. BMP Expert Approval
+3. AI Scenario Metering Integration
+4. Feature Activation via CBC
+5. Floor Price Impact Review
+6. SAP Business AI Pricing Model
+
+### ✅ L0-5 — Responsible AI & Safety Validation
+1. Safety Dashboard Pre-Release Eval
+2. AI Bias & Fairness Assessment
+3. Adversarial & Red Team Testing
+4. AI Ethics & Governance Alignment
+5. GDPR / EU AI Act Compliance
+
+### ✅ L0-6 — Agent Development & Deployment
+1. Agent Builder in Joule Studio
+2. Skill Builder in Joule Studio
+3. Generative AI Hub (J17)
+4. Skills Governance Agent (J1426)
+5. SAP AI Core & AI Launchpad
+
+### ✅ L0-7 — End-to-End Release & Go-Live
+1. AI-Driven Exploratory Testing
+2. Integration Validation
+3. CBC Toggle Activation
+4. Cross-Functional Sign-Off
+5. Official Release (AI112)
+
+### ✅ L0-8 — Agent Design & Performance
+1. Trigger Type Classification
+2. Agentic Reasoning Classification
+3. Cross-Agent Intent Conflict
+4. UI Layer Performance
+5. Orchestration Layer Performance
+6. Backend / Tool Call Performance
+
+### ✅ L0-9 — Knowledge & Data Grounding
+1. SAP KG as Runtime Grounding
+2. Custom KG Design & Governance
+3. KG vs RAG Decision Framework
+4. KG Freshness & Staleness Mgmt
+5. Structured Context Injection
+
+### ✅ L0-10 — Dependency & Change Resilience
+1. Runtime KG Dependency Resolution
+2. Agent Tool Dependency Map
+3. Model Drift Detection
+4. Data Drift Detection
+5. Architecture Drift Detection
+6. Continuous Accuracy Testing
+
+---
+
+## 9. Technical Workbook — Design Narrative
+
+> **Purpose of this section:** As a team moves from *advisory* to *build*, this document becomes a **technical workbook**. The Design Narrative captures the architecture decisions that must be made *before* code is written. Each decision maps to a governance gate above and is detailed in the linked build guide ([§13](#13-linked-guides--where-the-detail-lives)).
+
+The Design Narrative is the record of **how the agent will be architected**. It exists to make the design resilient: isolate the parts most likely to change (model provider, connectivity, region) so a later swap is configuration, not a rewrite.
+
+### 9.1 Core design decisions
+
+| Decision | Options | Guiding principle | Relates to gate |
+|---|---|---|---|
+| **Model access** | `aicore` (SAP AI Core / GenAI Hub) · `openai-compatible` (approved gateway) | Isolate the model behind a single `LLM_PROVIDER` switch — swapping provider or region is config-only, never code. | L0-2, L0-4 |
+| **Connectivity mode** | Mock · Agent Gateway · Direct (Destination + Connectivity) | Build Agent Gateway (ORD/MCP) first — it is the standard tool-registration format. Direct is the fallback for on-prem / unregistered endpoints. | L0-6, L0-8 |
+| **Grounding strategy** | Live transactional (OData) · Document RAG (HANA Vector) · Knowledge Graph (HANA RDF) | Choose per data shape: KG vs RAG is an explicit decision, not a default. | L0-3, L0-9 |
+| **Identity model** | Technical user · Principal propagation | Interactive advisory agents usually need principal propagation so SAP authorisations apply per user — a broad technical user can leak data even read-only. | L0-5 |
+| **Region / residency** | Commercial (GA) · Sovereign / regulated | Verify service availability (Joule, AI Core, AGW, HANA) in the target subaccount *before* designing around it; AI Core region must match SAP data residency. | L0-4, L0-5 |
+| **Transport** | A2A (JSON-RPC over HTTP) | A2A is the standard agent surface — the single communication layer between Joule, external agents, and your agent. | L0-7, L0-10 |
+| **State** | In-memory (MVP) · Durable (HANA Cloud) | Externalise conversation state keyed by `contextId` + user identity where it must survive restarts. | L0-10 |
+
+### 9.2 Design principles (platform-change resilience)
+
+- **Isolate the model** behind one switch so provider/region swaps touch configuration only.
+- **Author tools with stable ORD IDs** in `asset.yaml` from the start, via the EDMX → MCP → ORD pipeline — this keeps tool registration consistent and portable.
+- **Keep the data path region-agnostic** — reading business data is a plain HTTP/OData call, independent of model region.
+- **Advisory-only by design** — no `POST`/`PATCH`/`DELETE` to SAP; disclaimer on financial outputs; never fabricate data.
+- **Design sovereign regions as first-class**, not an afterthought.
+
+> **Design Narrative sign-off** is the exit criterion for the Technical Workbook stage. The full architectural detail — connectivity modes, model isolation, identity propagation, regional handling — lives in the Joule Cookbook build guide (Part A). See [§13](#13-linked-guides--where-the-detail-lives).
+
+---
+
+## 10. Technical Workbook — Build Narrative
+
+The Build Narrative is the record of **how the agent will be executed** — the ordered path from empty folder to a Joule-registered, production-hardened agent. It is the bridge from *workbook* into *development*.
+
+### 10.1 The build sequence
+
+| Step | What happens | Detailed in |
+|---|---|---|
+| **1. Scaffold** | Generate the project skeleton (Joule Studio bootstrap or a generated accelerator boilerplate). | Cookbook Part A §2 |
+| **2. Mock-first** | Make the full agent work offline in mock mode before any SAP connection — all tests pass with no credentials. | Cookbook Part A §3 |
+| **3. Connect data** | Wire the chosen connectivity mode (Agent Gateway / Direct); run the EDMX → MCP → ORD pipeline. | Cookbook Part A §3, §5 |
+| **4. Harden** | Auth & identity at the A2A boundary, error/resilience contract, observability, security. | Cookbook Part A §3a, §3b, §1b |
+| **5. Deploy** | Push to Cloud Foundry (or Kyma); bind services via `VCAP_SERVICES`. | Cookbook Part B §6, §6a |
+| **6. Register** | Register the agent card with Joule (admin UI or Joule Studio CLI). | Cookbook Part B §7 |
+
+### 10.2 The build & hardening checklist (link-out)
+
+Execution against the Build Narrative is governed by the **Agent-PathToProd checklist** — a master, staged checklist (Stage 0 pre-build → production readiness sign-off) where each item is tagged `[code]` (harness-validated) or `[deploy]` (developer-validated), and each gate must pass before the next stage starts.
+
+> The Agent-PathToProd checklist is **not reproduced here** — it lives in and is maintained with the build guide. This governance document routes you to it; it does not duplicate it. See [§13](#13-linked-guides--where-the-detail-lives).
+>
+> **Note on automation:** the `[code]`-tagged items in Agent-PathToProd are already machine-checkable. They are the concrete seed of the *automated governance* this Group is moving toward ([§12](#12-future-direction)) — design-time validation and automated assessments build directly on them.
+
+---
+
+## 11. How We Can Help & When to Engage
+
+### 11.1 How We Can Help
+
+| Service area | What we provide |
+|---|---|
+| **Architecture Guidance** | Solution architecture reviews · Architecture assessments · Reference architecture recommendations · Integration guidance · Technology selection support · Repository selection guidance |
+| **Governance Reviews** | Governance assessments · Architecture validation · Production readiness reviews · Security and compliance guidance · Responsible AI reviews · Lifecycle governance reviews |
+| **Architecture Accelerators** | Reference architectures · Architecture blueprints · Governance frameworks · Design patterns · RAG accelerators · Knowledge Graph guidance · Reusable architecture assets |
+| **Advisory Services** | Architecture workshops · Design reviews · Technical advisory services · Architecture coaching · AI readiness assessments · Best-practice guidance |
+
+### 11.2 When to Engage the Architecture Group
+
+Consider engaging the Architecture Group when:
+
+- ✅ Evaluating a custom AI opportunity
+- ✅ Selecting an implementation approach
+- ✅ Designing a new agent architecture
+- ✅ Implementing Knowledge Graph or RAG solutions
+- ✅ Preparing a solution for production deployment
+- ✅ Requiring a governance or architecture review
+- ✅ Facing security, compliance, or Responsible AI considerations
+- ✅ Managing lifecycle, versioning, or drift across deployed agents
+
+---
+
+## 12. Future Direction
+
+Today, governance reviews are primarily performed through **architecture assessments and structured review processes**. Over time, the Architecture Group intends to evolve toward more automated governance capabilities, including:
+
+- Design-time validation
+- Architecture certification services
+- Automated governance assessments
+- Runtime compliance monitoring
+- Governance reporting and dashboards
+- CI/CD integration opportunities where appropriate
+
+The goal is to make governance **easier to consume, more consistent to apply, and scalable** across a growing portfolio of AI solutions. The `[code]`-tagged gates in the Build Narrative's checklist ([§10.2](#102-the-build--hardening-checklist-link-out)) are the practical starting point for this automation.
+
+---
+
+## 13. Linked Guides — Where the Detail Lives
+
+This governance document is the **primary reference and router**. The detailed engineering and process guides it points into are maintained separately:
+
+| Layer | Guide | Role | Link |
+|---|---|---|---|
+| **Build engine** | Custom Agentic Solutions CoE cookbook | Main global repository for building SAP custom agents — scaffolding, toolkit, connectivity, deployment. | `https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE` |
+| **Build & harden guide** | SAP Custom Agent Blueprint (Joule Studio Build Guide) | The complete build-and-harden guide (Part A Build · Part B Integrate) plus the **Agent-PathToProd checklist** and the Design/Build narrative detail. | `https://github.tools.sap/I039198/Agent-PathToProd/tree/main` |
+| **Process & governance wrapper** | GDH-AIFactory Agent Program | Agent lifecycle, customer onboarding runbook, architecture reference, vendor-neutral development guide. | `https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/` |
+| **KG-grounded agents** | Cookbook-KG-CustomAI / AI Factory CodeAgents-KG | Knowledge Graph grounded agents on SAP HANA RDF. | AI Factory \| CodeAgents-KG |
+| **Reusable assets** | APAC Data & AI Accelerator Library | Curated, production-ready reference architectures, agent patterns, AI blueprints, BDC design patterns, playbooks, governance standards. | SAP Enterprise GitHub (read access: all SAP colleagues) |
+
+> **How the layers relate:** the **CoE cookbook** is the *build engine*; the **Blueprint** is the *hardening guide*; the **Agent Program** is the *process wrapper*; and **this document** is the *governance and routing layer* above all of them. The Agent Program governs *how the engagement runs*; the Blueprint governs *how the agent is built*; this document governs *whether it may proceed* (the L0 gates) and *where to go next*.
+
+---
+
+## 14. Supporting Reference — Target Agent Architecture (SAP BDC)
+
+Custom agents are designed to operate within the SAP Business Data Cloud (BDC) reference architecture, which layers enterprise data and grounds AI in business context:
+
+| Layer | Role |
+|---|---|
+| **Lake Storage** | Integrates SAP and non-SAP data across multi-cloud, hybrid, and on-premise environments. |
+| **Intelligent Compute** | Unifies transactional and analytical workloads (SQL, Spark, multi-model). |
+| **Knowledge Core** | Embeds business context via shared semantics, knowledge graphs, canonical models, and governed data products. |
+| **Agents & Intelligent Applications** | AI agents leverage business context to act autonomously, orchestrated by **SAP Joule**. |
+| **Governance** | End-to-end lineage, policy enforcement, data quality, and controlled access embedded throughout. |
+| **Open Data Ecosystem** | BDC Connect enables zero-copy sharing across Snowflake, Databricks, Google BigQuery, and Microsoft Fabric. |
+
+This layered foundation ensures that custom agents are grounded in **governed, context-rich enterprise data** — a prerequisite for passing the L0-3 (RAG Quality) and L0-9 (Knowledge & Data Grounding) gates.
+
+---
+
+## 15. Change Log
+
+| Version | Date | Author / Owner | Summary of changes |
+|---|---|---|---|
+| **1.0** | 2026-08-11 | APAC GDH Data & AI Architecture Group | Initial rollout release. Establishes the Advisory → Technical Workbook → Development journey, the L0-1 → L0-10 governance gates (incl. Idea-to-Value in L0-1), Roles & Responsibilities, Design & Build narratives, and links out to the build guides. |
+
+> Reviewed quarterly by the Data & AI Architecture Group. Propose changes via the feedback channel in the header.
+
+---
+
+*Maintained by the APAC GDH Data & AI Architecture Group. Every published governance artefact follows a defined quality standard with peer-review sign-off, a named owner, and a minimum one-year utility horizon.*
