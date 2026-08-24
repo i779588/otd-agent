@@ -14,11 +14,11 @@
 2. **Run the Use-case intake (§2)** as a short conversation, scaled to the scope from §2.0. Accept a single-line intent and infer the rest. If an `intent.md` exists, read it first and only ask about genuinely open points.
 3. **Produce a Solution recommendation (§3)** from the answers. There are **no hard-coded rules** — reason about agent type, platform, low-code vs pro-code, and which cookbook/accelerator (if any) fits. State your rationale and one alternative.
 4. **Walk the Build journey (§6)** step by step for the chosen scope — skip steps that don't apply (e.g. a Joule skill has no standalone runtime to deploy). At each stage, name the **applicable Agent Checklist controls (§10)**, scoped to the unit of work (§10 opening note). Never restate the control text.
-5. **Fill in the Final generated build plan (§11)** with the selected scope, approach, and assets, and hand it back as the developer's actionable plan.
+5. **Write the `implementation-plan.md` (§11)** into the new agent sub-folder with the selected scope, approach, and assets — including a **demo UI (HTML)** and **mock data** runnable offline under `IBD_TESTING=1`, and a final **cleanup task** to remove unused code/templates. Hand it back as the developer's actionable plan.
 6. Only pause when something essential is missing or contradictory. Otherwise, keep moving.
 
 **Inputs required:** a statement of intent (one line is enough) and access to this repo.
-**Expected output:** a completed **build plan (§11)**, a chosen scope + cookbook/accelerator, and an ordered set of implementation steps with the scoped checklist gates.
+**Expected output:** a written **`implementation-plan.md`** (§11) with ordered steps + scoped checklist gates, a **mock-mode demo UI + mock data** (`IBD_TESTING=1`, offline), and a **cleanup task**.
 
 ---
 
@@ -172,7 +172,9 @@ Produce a recommendation covering:
 
 ### 6.3 Build
 - Scaffold with `sap-agent-bootstrap`; implement the three mandatory decorators (agent card / skill / executor).
-- Build **mock-first** — prove the agent fully offline before any live data.
+- Build **mock-first** — prove the agent fully offline before any live data. Mock mode is activated by the **`IBD_TESTING`** flag (`IBD_TESTING=1` / `="true"` → mock everywhere). **Do NOT branch on `IBD_TESTING` inside application code** — the test/mock harness (`conftest.py`) swaps the tool layer (`mcp_tools.get_mcp_tools`) before agent code runs, so agent code is byte-identical in mock and production. Gate mock behaviour at the **tool/data boundary**, not in business logic.
+- **Produce mock data** (deterministic fixtures the mock tool layer returns) so the agent runs end-to-end offline under `IBD_TESTING=1`.
+- **Produce a demo UI (HTML)** — a lightweight standalone page that exercises the agent for showcasing. It must run against **mock mode** (served through the `IBD_TESTING`-activated mock tool layer, no live SAP/credentials), so anyone can demo it offline.
 - **Checklist gate:** `L0-6` (Agent Builder / Skill Builder), `L0-8` (design classification, performance).
 
 ### 6.4 Connect knowledge and actions
@@ -181,13 +183,21 @@ Produce a recommendation covering:
 - **Checklist gate:** `L0-3` (RAG quality), `L0-9` (KG/grounding strategy), `L0-6.6` (tool access governance), `L0-6.7` (human-in-the-loop for actions).
 
 ### 6.5 Test
-- Run the golden-set evaluation; validate identity at the A2A boundary; exercise error/resilience paths.
+- Run the full suite in mock mode: `IBD_TESTING=1 pytest` (fully offline, coverage ≥70%, golden-set eval passes). Validate identity at the A2A boundary; exercise error/resilience paths.
+- Confirm the demo UI (6.3) runs offline under `IBD_TESTING=1` against the mock data.
 - **Checklist gate:** `L0-5` (safety, red-team, bias), `L0-7.1/7.6` (AET + regression environment).
 
 ### 6.6 Deploy
 - Push to CF/Kyma; register the agent card with Joule Studio; wire intent routing.
 - Confirm metering, observability, and rollback (CBC toggle).
 - **Checklist gate:** `L0-7` (release validation & go-live), `L0-6.8` (observability/tracing), `L0-10` (post-go-live resilience).
+
+### 6.7 Cleanup (before hand-off)
+- **Remove unused code and template stubs** left by the scaffold — dead decorators, placeholder tools, sample files, and any `[illustrative]` snippets that were never wired in.
+- Remove any accelerator/cookbook templates you copied but didn't use.
+- Keep the **mock data + demo UI** (they're deliverables, gated by `IBD_TESTING`) — but delete scaffolding that isn't part of the final agent.
+- Confirm no secrets in code/markdown; `.env` gitignored; no invented imports remain.
+- **Checklist gate:** `L0-6` (dev standards — no credentials committed, no invented imports).
 
 ---
 
@@ -248,6 +258,26 @@ Options considered:
 Chosen option & rationale:
 Consequences / trade-offs:
 Checklist controls satisfied:
+```
+
+### 7.7 Mock data (offline fixtures, `IBD_TESTING`)
+```
+# Deterministic fixtures returned by the mock tool layer when IBD_TESTING=1.
+# Keyed by tool/entity so the agent runs end-to-end offline with no live SAP.
+Tool / entity:
+Sample request:
+Sample response (mock):
+Edge / error cases represented:
+```
+
+### 7.8 Demo UI (HTML, mock-mode only)
+```
+# A standalone HTML page that exercises the agent for showcasing.
+# Runs against mock mode (IBD_TESTING=1) — no live SAP, no credentials.
+- Single self-contained index.html (inline CSS/JS; no build step).
+- Calls the local agent endpoint running under IBD_TESTING=1.
+- Shows: input box → agent response → the mock data it "retrieved".
+- Clearly labelled "DEMO — mock data" so it's never mistaken for live.
 ```
 
 ---
@@ -441,12 +471,17 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 
 ---
 
-## 11 · Final generated build plan
+## 11 · Final output — write `implementation-plan.md`
 
-*Claude: fill this in from the intake and recommendation, and hand it back as the developer's actionable plan.*
+*Claude: from the intake and recommendation, **write a distinct `implementation-plan.md`** into the new agent sub-folder (not just inline chat). It is the developer's actionable, self-contained plan. Use the template below.*
+
+The plan **must** include, in addition to the approach and steps:
+- **Demo UI (HTML)** — a standalone mock-mode showcase page (template §7.8), runnable offline under `IBD_TESTING=1`.
+- **Mock data** — deterministic offline fixtures (template §7.7) the mock tool layer returns under `IBD_TESTING=1`.
+- **Cleanup task** — an explicit final task to remove unused code and unused templates/scaffolding (see §6.7).
 
 ```
-# Build Plan — {{agent_name}}
+# Implementation Plan — {{agent_name}}
 
 ## Scope
 - Build scope: {{full custom agent | Joule skill | plugin/tool | multi-agent | embedded feature}}
@@ -468,10 +503,22 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 *(Omit steps that don't apply to the scope — e.g. a Joule skill skips standalone scaffold/deploy.)*
 1. Prepare — {{…}}  (gate: L0-1, L0-4/5)
 2. Configure — {{…}}  (gate: L0-2, L0-6)
-3. Build (mock-first) — {{…}}  (gate: L0-6, L0-8)
+3. Build (mock-first, IBD_TESTING=1) — {{…}}  (gate: L0-6, L0-8)
 4. Connect knowledge & actions — {{…}}  (gate: L0-3/9, L0-6.6/6.7)
-5. Test — {{…}}  (gate: L0-5, L0-7.1/7.6)
+5. Test (IBD_TESTING=1 pytest, offline) — {{…}}  (gate: L0-5, L0-7.1/7.6)
 6. Deploy & register — {{…}}  (gate: L0-7, L0-6.8, L0-10)
+7. Cleanup — remove unused code + unused templates/scaffolding — {{…}}  (gate: L0-6)
+
+## Demo assets (mock-mode, IBD_TESTING=1)
+- Mock data fixtures: {{files + what they cover — template §7.7}}
+- Demo UI (HTML): {{standalone page, offline, "DEMO — mock data" labelled — template §7.8}}
+
+## Cleanup checklist
+- [ ] Unused scaffold code / dead decorators removed
+- [ ] Unused accelerator/cookbook templates removed
+- [ ] `[illustrative]` snippets removed or wired in
+- [ ] No secrets in code/markdown; `.env` gitignored
+- [ ] Mock data + demo UI retained (gated by `IBD_TESTING`)
 
 ## Applicable checklist subset
 - {{list only the pillars that apply to this scope, per the §10 scope table}}
