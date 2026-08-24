@@ -10,24 +10,30 @@
 
 **When a developer opens this repo in a coding harness (Claude Code) and asks to build an agent, act on this file — do not just display it.**
 
-1. **Set the scope first (§2.0).** Ask the one front-door question: is this a **full custom agent** (the default and primary path), a **Joule skill**, a **plugin/tool for an existing agent**, a **multi-agent system**, or an **embedded AI feature**? Everything downstream — cookbook choice, which build steps apply, which checklist controls fire — depends on this answer. If the user just states intent without saying, assume **full custom agent** and confirm.
-2. **Run the Use-case intake (§2)** as a short conversation, scaled to the scope from §2.0. Accept a single-line intent and infer the rest. If an `intent.md` exists, read it first and only ask about genuinely open points.
-3. **Produce a Solution recommendation (§3)** from the answers. There are **no hard-coded rules** — reason about agent type, platform, low-code vs pro-code, and which cookbook/accelerator (if any) fits. State your rationale and one alternative.
-4. **Walk the Build journey (§6)** step by step for the chosen scope — skip steps that don't apply (e.g. a Joule skill has no standalone runtime to deploy). At each stage, name the **applicable Agent Checklist controls (§10)**, scoped to the unit of work (§10 opening note). Never restate the control text.
-5. **Write the `implementation-plan.md` (§11)** into the new agent sub-folder with the selected scope, approach, and assets — including a **demo UI (HTML)** and **mock data** runnable offline under `IBD_TESTING=1`, and a final **cleanup task** to remove unused code/templates. Hand it back as the developer's actionable plan.
-6. Only pause when something essential is missing or contradictory. Otherwise, keep moving.
+1. **Set the scope first (§2.0).** Ask the one front-door question: full custom agent / Joule skill / plugin/tool / multi-agent / embedded feature? Default: **full custom agent**. If intent.md is clear, confirm without asking.
+2. **Run the Use-case intake (§2)** — one cluster at a time; accept a single-line intent and infer the rest.
+3. **Produce a Solution recommendation (§3)** — agent type, platform, low-code vs pro-code, cookbook/accelerator, rationale + one alternative. No hard-coded rules.
+4. **Walk the Build journey (§6)** for the chosen scope. At every step, name the applicable checklist controls (§10) **and immediately assign a status flag to each:**
+   - `✅ Satisfied` — demonstrably met by what was built/configured.
+   - `⚠️ Partial` — partially met; document what is missing.
+   - `❌ Not satisfied` — applies to this scope but not met; flag prominently with reason + remediation needed before production.
+   - `⏭️ Skipped — N/A` — does not apply to this scope (per §10 scope table); state why.
+   **Never silently omit a control. Every applicable control must have a status.**
+5. **Write `implementation-plan.md` (§11)** into the new agent sub-folder — scope, approach, assets, ordered steps, demo UI + mock data (IBD_TESTING=1), cleanup task.
+6. **Write `agent-outcome-report.md` (§12)** into the new agent sub-folder — the complete build record: what was built, every L0-L10 control with its flag, ❌/⚠️ items to resolve before production, go/no-go verdict. **This is the hand-off document.**
+7. Only pause when something essential is missing or contradictory. Otherwise, keep moving.
 
-**Inputs required:** a statement of intent (one line is enough) and access to this repo.
-**Expected output:** a written **`implementation-plan.md`** (§11) with ordered steps + scoped checklist gates, a **mock-mode demo UI + mock data** (`IBD_TESTING=1`, offline), and a **cleanup task**.
+**Inputs:** a statement of intent (one line is enough) + this repo.
+**Outputs written to the agent sub-folder:** `implementation-plan.md` · `agent-outcome-report.md` · mock data · demo UI · cleaned-up agent code.
 
 ---
 
 ## 1 · How to use this guide
 
-- **Audience:** developers building SAP custom agents. The flow is the same whether you write code directly or lean on low-code Joule Studio — Claude adapts the depth of each step to the path you pick in §3.
-- **The loop:** intake (§2) → recommendation (§3) → pick from the catalog (§4) → follow the build journey (§6) → satisfy the checklist gates (§10) → generate your build plan (§11).
+- **Audience:** developers building SAP custom agents.
+- **The loop:** intake (§2) → recommendation (§3) → catalog (§4) → build journey (§6, with checklist flags at every step) → implementation-plan.md (§11) → agent-outcome-report.md (§12).
 - **Templates (§7)** and **worked examples (§8)** are there to copy from. **Troubleshooting (§9)** is for when a step doesn't go to plan.
-- **Onboarding frame:** the intake mirrors the **GDH AI Factory** onboarding workflow — value case first, then architecture, then build — so what you produce here feeds cleanly into the wider governance path.
+- **Onboarding frame:** mirrors the **GDH AI Factory** workflow — value case first, then architecture, then build — so what you produce here feeds cleanly into the wider governance path.
 
 ---
 
@@ -529,6 +535,279 @@ The plan **must** include, in addition to the approach and steps:
 ## Next action
 - {{the single next concrete step for the developer}}
 ```
+
+---
+
+## 12 · Agent Outcome Report — write `agent-outcome-report.md`
+
+*Claude: after the build is complete, **write `agent-outcome-report.md`** into the new agent sub-folder. This is the definitive hand-off document — governance record, demo/mock status, and go/no-go verdict. Use the template below.*
+
+> **Purpose:** anyone picking up this agent — a reviewer, a delivery lead, a customer team — can open `agent-outcome-report.md` and know exactly what was built, what governance controls were satisfied, what gaps remain, and whether the agent is production-ready.
+
+```markdown
+# Agent Outcome Report — {{agent_name}}
+Generated: {{date}}
+Build scope: {{full custom agent | Joule skill | plugin/tool | multi-agent | embedded feature}}
+
+---
+
+## 1. What was built
+- **Agent name:** {{agent_name}}
+- **Intent:** {{one-line statement of what the agent does}}
+- **Agent type:** {{reactive | chain-of-thought | ReAct | multi-agent}}
+- **Build path:** {{low-code (Joule Studio) | pro-code (scaffold)}}
+- **Platform / runtime:** {{AI Core; CF | Kyma | Joule Studio only}}
+- **Cookbook used:** {{CoE | KG | none}}
+- **Grounding strategy:** {{OData | RAG | KG | mix | none}}
+
+---
+
+## 2. Deliverables produced
+| Deliverable | Status | Notes |
+|---|---|---|
+| Agent code (scaffolded) | {{✅ / ❌}} | {{sub-folder path}} |
+| `implementation-plan.md` | {{✅ / ❌}} | |
+| Mock data (IBD_TESTING=1) | {{✅ / ❌}} | {{files}} |
+| Demo UI (HTML, offline) | {{✅ / ❌}} | {{file}} |
+| `.env` template | {{✅ / ❌}} | Secrets list provided to developer |
+| Cleanup complete | {{✅ / ⚠️ / ❌}} | {{what remains if not complete}} |
+
+---
+
+## 3. L0-L10 Governance Checklist — full status
+
+**Flag key:** ✅ Satisfied · ⚠️ Partial · ❌ Not satisfied · ⏭️ Skipped — N/A (scope)
+
+### L0-1 · AI Feature & Agent Onboarding Governance
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 1.0 | Idea2Value | {{flag}} | |
+| 1.1 | Feature Type Classification | {{flag}} | |
+| 1.2 | Commercial Tier Determination | {{flag}} | |
+| 1.3 | AI Golden Path | {{flag}} | |
+| 1.4 | Document AI Commercialization Track | {{flag}} | |
+| 1.5 | GDH APAC Architect Group Support | {{flag}} | |
+| 1.6 | Onboarding Agent Templates | {{flag}} | |
+
+### L0-2 · LLM Selection & Benchmarking
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 2.1 | Test Data Preparation & Submission | {{flag}} | |
+| 2.2 | Automated Multi-Model Evaluation | {{flag}} | |
+| 2.3 | Gen AI Evaluation Roadmap | {{flag}} | |
+| 2.4 | Results via Helm Dashboard | {{flag}} | |
+| 2.5 | Ongoing Model Version Re-evaluation | {{flag}} | |
+| 2.6 | Frontier Model Justification Gate | {{flag}} | |
+| 2.7 | Model Update & Retraining Governance | {{flag}} | |
+
+### L0-3 · Document Grounding & RAG Quality Evaluation
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 3.1 | Document Grounding Setup | {{flag}} | |
+| 3.2 | Vector Embedding & Retrieval Pipeline | {{flag}} | |
+| 3.3 | RAG Triad — Context Relevance | {{flag}} | |
+| 3.4 | RAG Triad — Faithfulness | {{flag}} | |
+| 3.5 | RAG Triad — Answer Relevance | {{flag}} | |
+| 3.6 | Prompt Engineering Governance | {{flag}} | |
+| 3.7 | Automated Grounding Roadmap | {{flag}} | |
+| 3.8 | Runtime Hallucination Guardrail Architecture | {{flag}} | |
+
+### L0-4 · AI Commercialization & Metering
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 4.1 | LLM Calculator | {{flag}} | |
+| 4.2 | BMP Expert Approval | {{flag}} | |
+| 4.3 | AI Scenario Metering Integration | {{flag}} | |
+| 4.4 | Feature Activation via CBC | {{flag}} | |
+| 4.5 | Floor Price Impact Review | {{flag}} | |
+| 4.6 | SAP Business AI Pricing Model | {{flag}} | |
+| 4.7 | Customer Token Consumption Forecast | {{flag}} | |
+| 4.8 | Cost Per Transaction Baseline | {{flag}} | |
+
+### L0-5 · Responsible AI & Safety Validation
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 5.1 | Safety Dashboard Pre-Release Evaluation | {{flag}} | |
+| 5.2 | AI Bias & Fairness Assessment | {{flag}} | |
+| 5.3 | Adversarial & Red Team Testing | {{flag}} | |
+| 5.4 | AI Ethics & Governance Alignment | {{flag}} | |
+| 5.5 | GDPR / EU AI Act Compliance | {{flag}} | |
+| 5.6 | Indirect Prompt Injection via Business Data | {{flag}} | |
+| 5.7 | IP Rights & Data Ownership Governance | {{flag}} | |
+
+### L0-6 · Agent Development & Deployment Standards
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 6.1 | Agent Builder in Joule Studio | {{flag}} | |
+| 6.2 | Skill Builder in Joule Studio | {{flag}} | |
+| 6.3 | Generative AI Hub (J17) | {{flag}} | |
+| 6.4 | Skills Governance Agent (J1426) | {{flag}} | |
+| 6.5 | SAP AI Core & AI Launchpad | {{flag}} | |
+| 6.6 | Agent Tool Access Governance | {{flag}} | |
+| 6.7 | Human-in-the-Loop Approval Governance | {{flag}} | |
+| 6.8 | Agent Execution Observability & Tracing | {{flag}} | |
+
+### L0-7 · End-to-End Release Validation & Go-Live
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 7.1 | AI-Driven Exploratory Testing (AET) | {{flag}} | |
+| 7.2 | Integration Validation | {{flag}} | |
+| 7.3 | CBC Toggle Activation | {{flag}} | |
+| 7.4 | Cross-Functional Sign-Off | {{flag}} | |
+| 7.5 | Official Release (AI112) | {{flag}} | |
+| 7.6 | Agent Regression Testing Environment | {{flag}} | |
+
+### L0-8 · Agent Design Classification & Performance Engineering
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 8.1 | Trigger Type Classification | {{flag}} | |
+| 8.2 | Agentic Reasoning Classification | {{flag}} | |
+| 8.3 | Cross-Agent Intent Conflict Resolution | {{flag}} | |
+| 8.4 | UI Layer Performance | {{flag}} | |
+| 8.5 | Orchestration / Reasoning Layer Performance | {{flag}} | |
+| 8.6 | Backend / Tool Call Performance | {{flag}} | |
+
+### L0-9 · Knowledge & Data Grounding Strategy
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 9.1 | SAP KG as Runtime Grounding Source | {{flag}} | |
+| 9.2 | Custom KG Design & Governance | {{flag}} | |
+| 9.3 | KG vs RAG Decision Framework | {{flag}} | |
+| 9.4 | KG Freshness & Staleness Management | {{flag}} | |
+| 9.5 | Context Engineering — Structured Context Injection | {{flag}} | |
+
+### L0-10 · Dependency & Change Resilience
+| # | Control | Status | Notes / Evidence |
+|---|---|---|---|
+| 10.1 | Runtime KG Dependency Resolution | {{flag}} | |
+| 10.2 | Agent Tool Dependency Map | {{flag}} | |
+| 10.3 | Model Drift Detection | {{flag}} | |
+| 10.4 | Data Drift Detection | {{flag}} | |
+| 10.5 | Architecture Drift Detection | {{flag}} | |
+| 10.6 | Continuous Accuracy Testing Pipeline | {{flag}} | |
+| 10.7 | Post Go-Live Operational Governance | {{flag}} | |
+| 10.8 | Agent Incident Definition & Support Tier Ownership | {{flag}} | |
+
+---
+
+## 4. Flagged items — must resolve before production
+
+*Claude: list every ❌ and ⚠️ item here with a clear remediation action. If there are none, write "None — all applicable controls satisfied."*
+
+| Control | Flag | Issue | Remediation required |
+|---|---|---|---|
+| {{e.g. 5.1 Safety Dashboard}} | ❌ | {{reason not satisfied}} | {{what must be done}} |
+| {{e.g. 3.4 RAG Faithfulness}} | ⚠️ | {{what is partial}} | {{what remains}} |
+
+---
+
+## 5. Mock mode & demo status
+| Item | Status | Notes |
+|---|---|---|
+| `IBD_TESTING=1 pytest` passes offline | {{✅ / ❌}} | |
+| Coverage ≥ 70% | {{✅ / ❌}} | |
+| Mock data fixtures present | {{✅ / ❌}} | |
+| Demo UI (HTML) runs offline | {{✅ / ❌}} | |
+| Demo clearly labelled "DEMO — mock data" | {{✅ / ❌}} | |
+
+---
+
+## 6. Cleanup status
+| Item | Status |
+|---|---|
+| Unused scaffold code removed | {{✅ / ❌}} |
+| Unused accelerator/cookbook templates removed | {{✅ / ❌}} |
+| `[illustrative]` snippets removed or wired in | {{✅ / ❌}} |
+| No secrets in code/markdown; `.env` gitignored | {{✅ / ❌}} |
+
+---
+
+## 7. Summary scorecard
+| Category | ✅ Satisfied | ⚠️ Partial | ❌ Not satisfied | ⏭️ Skipped N/A |
+|---|---|---|---|---|
+| L0-1 Onboarding | | | | |
+| L0-2 LLM | | | | |
+| L0-3 Grounding | | | | |
+| L0-4 Commercial | | | | |
+| L0-5 Responsible AI | | | | |
+| L0-6 Dev Standards | | | | |
+| L0-7 Release | | | | |
+| L0-8 Design/Perf | | | | |
+| L0-9 KG/Grounding | | | | |
+| L0-10 Resilience | | | | |
+| **Total** | | | | |
+
+---
+
+## 8. Go / No-Go verdict
+
+> **{{GO ✅ | NO-GO ❌ | CONDITIONAL GO ⚠️}}**
+>
+> {{One paragraph: overall assessment. If NO-GO or CONDITIONAL GO, list the specific ❌ items that must be resolved and by whom before production.}}
+
+---
+
+## 9. Next steps
+1. {{first action, owner, deadline}}
+2. {{second action}}
+```
+
+---
+
+## 13 · Complete testing plan
+
+*How to validate the toolkit end-to-end before using it for a real engagement.*
+
+### 13.1 Prerequisites
+- Claude Code installed, repo cloned: `git clone https://github.tools.sap/I039198/Agent-PathToProd.git`
+- Python 3.9+ for local mock runs.
+
+### 13.2 Test 1 — Auto-fire (no explicit command)
+1. Open the repo folder in Claude Code.
+2. Say nothing — just open it.
+3. **Expected:** Claude reads `CLAUDE.md` → `developer-toolkit.md` → asks for scope or reads `intent.md` automatically.
+4. **Pass:** Claude does not wait for a "start" command.
+
+### 13.3 Test 2 — Minimal intent (one line)
+1. Create `intent.md` with exactly: `Build an agent that answers S/4HANA inventory questions.`
+2. Open in Claude Code.
+3. **Expected:** Claude reads the intent, assumes full custom agent, runs intake with ≤4 focused questions, produces a recommendation, walks the build, flags all L0-L10 controls, writes `implementation-plan.md` and `agent-outcome-report.md`.
+4. **Pass:** both files exist in the new sub-folder; every checklist control has a flag; no silent omissions.
+
+### 13.4 Test 3 — Idea2Value-rich intent
+1. Run a use case through `https://idea-agent.cfapps.us10-001.hana.ondemand.com`
+2. Copy the output into `intent.md`.
+3. Open in Claude Code.
+4. **Expected:** Claude asks fewer questions (most are already answered); recommendation is more specific; outcome report references the Idea2Value document at `1.0`.
+5. **Pass:** 1.0 (Idea2Value) is flagged `✅` in the outcome report.
+
+### 13.5 Test 4 — Non-default scope (Joule skill)
+1. Create `intent.md`: `Add a skill to Joule that summarises open purchase orders.`
+2. **Expected:** Claude identifies this as a **Joule skill**, not a full agent; skips CF/Kyma deploy, skips L0-7 go-live; applies the lighter checklist subset; still flags each control with ⏭️ where N/A.
+3. **Pass:** no standalone scaffold created; L0-7, L0-10 controls marked `⏭️ Skipped — N/A`; outcome report reflects lighter scope.
+
+### 13.6 Test 5 — Mock mode & demo UI
+1. Use any intent.
+2. After the build, run: `IBD_TESTING=1 pytest` in the new sub-folder.
+3. Open the generated `demo/index.html` in a browser (no server needed).
+4. **Expected:** all tests pass offline; demo UI shows a response; page is labelled "DEMO — mock data".
+5. **Pass:** zero live SAP calls; no credentials needed.
+
+### 13.7 Test 6 — Checklist flags & outcome report
+1. Use any intent.
+2. Open `agent-outcome-report.md` after the build.
+3. **Expected:**
+   - Every L0-L10 control row is present (70 rows total).
+   - No row has a blank status.
+   - Any ❌/⚠️ item appears in Section 4 (Flagged items) with a remediation.
+   - Section 7 scorecard totals add up.
+   - Section 8 gives a clear GO/NO-GO verdict.
+4. **Pass:** above conditions all met.
+
+### 13.8 Test 7 — Cleanup
+1. After the build, review the sub-folder.
+2. **Expected:** no `[illustrative]` comments remain; no unused decorator stubs; no unused template files; `.env` gitignored; mock data + demo UI retained.
+3. **Pass:** cleanup checklist in `agent-outcome-report.md` Section 6 is all `✅`.
 
 ---
 
