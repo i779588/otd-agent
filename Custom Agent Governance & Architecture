@@ -355,7 +355,7 @@ This governance document is the **primary reference and router**. The detailed e
 | Layer | Guide | Role | Link |
 |---|---|---|---|
 | **Build engine** | Custom Agentic Solutions CoE cookbook | Main global repository for building SAP custom agents — scaffolding, toolkit, connectivity, deployment. | `https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE` |
-| **Build & harden guide** | SAP Custom Agent Blueprint (Joule Studio Build Guide) | The complete build-and-harden guide (Part A Build · Part B Integrate) plus the **Agent-PathToProd checklist** and the Design/Build narrative detail. | `https://github.tools.sap/I039198/Agent-PathToProd/tree/main` |
+| **Build & harden guide** | SAP Custom Agent Blueprint (Joule Studio Build Guide) | The complete build-and-harden guide (Part A Build · Part B Integrate) plus the **Agent-PathToProd checklist** and the Design/Build narrative detail. | `https://github.tools.sap/GDH-Data-AI-Architecture-APAC/Agent-PathToProd/tree/main` |
 | **Process & governance wrapper** | GDH-AIFactory Agent Program | Agent lifecycle, customer onboarding runbook, architecture reference, vendor-neutral development guide. | `https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/` |
 | **KG-grounded agents** | Cookbook-KG-CustomAI / AI Factory CodeAgents-KG | Knowledge Graph grounded agents on SAP HANA RDF. | AI Factory \| CodeAgents-KG |
 | **Reusable assets** | APAC Data & AI Accelerator Library | Curated, production-ready reference architectures, agent patterns, AI blueprints, BDC design patterns, playbooks, governance standards. | SAP Enterprise GitHub (read access: all SAP colleagues) |

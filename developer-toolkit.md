@@ -158,17 +158,17 @@ Produce a recommendation covering:
 - **Prerequisites:** Claude Code (or a coding harness), repo access.
 - **Skill level:** any developer; Claude drives the flow.
 - **Limitations:** it orchestrates the cookbooks — the actual build engine is still the chosen cookbook.
-- **Repository:** <https://github.tools.sap/I039198/Agent-PathToProd/tree/main>
+- **Repository:** <https://github.tools.sap/GDH-Data-AI-Architecture-APAC/Agent-PathToProd/tree/main>
 - **Quick-start:** open in Claude Code → *"read developer-toolkit.md and build my agent."*
 
 ### Agent Blueprint (hardening guide)
 - **Purpose:** the complete build-and-harden reference — the 8-stage flow, connectivity modes, switchable-code readiness.
 - **Best-fit scenarios:** taking any agent from working to customer-ready/production.
-- **Reference:** <https://pages.github.tools.sap/I778959/agent-blueprint/>
+- **Reference:** <https://pages.github.tools.sap/GDH-Data-AI-Architecture-APAC/agent-blueprint/>
 
 ### Agent Checklist (10-pillar governance) — *embedded in full at §10*
 - **Purpose:** the canonical L0-1→L0-10 governance controls. Referenced at each build stage and **embedded in full in §10** of this file so it works as a self-contained guardrail — no external fetch needed.
-- **Live interactive version:** <https://pages.github.tools.sap/I778959/agent-blueprint/checklist/>
+- **Live interactive version:** <https://pages.github.tools.sap/GDH-Data-AI-Architecture-APAC/agent-blueprint/checklist/>
 
 ---
 
@@ -350,7 +350,7 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 
 ## 10 · Agent Checklist — 10 pillars, 70 controls (embedded, full)
 
-**The complete L0-1 → L0-10 governance checklist is embedded below** so this toolkit is self-contained. Use the stage→pillar map to know *which* controls apply at each build step (§6); tick the items as you go. Live interactive version: <https://pages.github.tools.sap/I778959/agent-blueprint/checklist/>.
+**The complete L0-1 → L0-10 governance checklist is embedded below** so this toolkit is self-contained. Use the stage→pillar map to know *which* controls apply at each build step (§6); tick the items as you go. Live interactive version: <https://pages.github.tools.sap/GDH-Data-AI-Architecture-APAC/agent-blueprint/checklist/>.
 
 > **Scope the controls to the unit of work (§2.0) — don't impose all 70 on a small build.** A **full custom agent** clears all applicable pillars. A **Joule skill** or **plugin/tool** typically needs only the intake, model, dev-standards, grounding/tool-access, and safety controls — not the standalone go-live (L0-7) or change-resilience (L0-10) pillars that assume an independent runtime. A **multi-agent system** additionally needs `L0-8.3` (conflict resolution) and per-agent drift detection. Claude: present the applicable subset for the chosen scope, and say plainly which pillars you're skipping and why.
 >
@@ -781,7 +781,7 @@ Build scope: {{full custom agent | Joule skill | plugin/tool | multi-agent | emb
 *How to validate the toolkit end-to-end before using it for a real engagement.*
 
 ### 13.1 Prerequisites
-- Claude Code installed, repo cloned: `git clone https://github.tools.sap/I039198/Agent-PathToProd.git`
+- Claude Code installed, repo cloned: `git clone https://github.tools.sap/GDH-Data-AI-Architecture-APAC/Agent-PathToProd.git`
 - Python 3.9+ for local mock runs.
 
 ### 13.2 Test 1 — Auto-fire (no explicit command)
