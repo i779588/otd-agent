@@ -59,7 +59,7 @@
 | Dependency | What it is | Reference |
 |---|---|---|
 | SAP API Policy | OData usage clause / API policy. | `help.sap.com/doc/sap-api-policy/latest/en-US/API_Policy_latest.pdf` — verify with the global API policy team |
-| **API Policy Compliance (internal wiki)** | GDH compliance checklist. | *`wiki.one.int.sap` — SAP-internal; add the specific requirements once captured (see [`QUICKSTART.md`](QUICKSTART.md)).* |
+| **API Policy Compliance (v.4.2026a)** | Mandatory governance framework for all SAP API consumers; endorsed AI architectures + the ATQ review gate. **Mapped for this kit in [`api-policy-compliance.md`](api-policy-compliance.md)** (scorecard + self-check). | Authoritative page: `wiki.one.int.sap` API Policy Compliance; `api-policy@global.corp.sap` |
 
 ---
 

@@ -63,7 +63,7 @@ Whichever route, the build follows three stages (CoE cookbook recipe order):
 - Track every relevant **L0-1 → L0-10** control ([`developer-toolkit.md` §10](developer-toolkit.md)) with a status flag — never silently skip one.
 - Walk the **Stage 0–8** build checklist ([`README.md` §Agent-PathToProd](README.md)).
 - Estimate cost, confirm API policy + data residency, get the cross-functional sign-off (L0-7.4).
-- **API Policy Compliance:** confirm against the GDH API policy compliance requirements (see [`references.md`](references.md) → API policy). *If your team maintains the internal wiki checklist, capture its items into `references.md` so this kit stays self-contained.*
+- **API Policy Compliance:** every custom agent must clear **API Policy v.4.2026a** and the **ATQ AI/Agentic review gate**. Self-check against the scorecard in [`api-policy-compliance.md`](api-policy-compliance.md), then contact ATQ and record the sign-off before implementation.
 
 ## Step 5 — Migrate later (Joule 2.0)
 
