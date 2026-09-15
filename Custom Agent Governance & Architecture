@@ -170,6 +170,8 @@ The Agent Governance Framework provides a **structured review process across the
 
 The following **ten governance gates (L0-1 through L0-10)** form the mandatory review checklist for every custom agent initiative. Each gate must be reviewed and signed off by the Architecture Group before an agent progresses toward production.
 
+> **Canonical source:** this is a **summary** of the ten pillars for governance sign-off. The **full, authoritative control list** (every numbered control, with `NEW`/`CORRECTED`/`EXPANDED` tags, descriptions, and reference links) lives in [`developer-toolkit.md` §10](developer-toolkit.md). Where the two differ on control count or a feature ID, **`developer-toolkit.md` wins** — it is kept in sync with the SAP feature catalogue. This summary is intentionally shorter for review meetings.
+
 ### ✅ L0-1 — AI Feature & Agent Onboarding Governance
 1. Idea-to-Value Discovery & Use-Case Validation
 2. Feature Type Classification
@@ -215,7 +217,7 @@ The following **ten governance gates (L0-1 through L0-10)** form the mandatory r
 1. Agent Builder in Joule Studio
 2. Skill Builder in Joule Studio
 3. Generative AI Hub (J17)
-4. Skills Governance Agent (J1426)
+4. Skills Governance Agent (J2259)
 5. SAP AI Core & AI Launchpad
 
 ### ✅ L0-7 — End-to-End Release & Go-Live

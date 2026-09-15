@@ -1,4 +1,5 @@
 > Related guidelines: [guidelines-agent.md](guidelines-agent.md) | [guidelines.md](guidelines.md) | [AI Agent Runtime Cost Estimation Guide.md](AI%20Agent%20Runtime%20Cost%20Estimation%20Guide%20v7.md)
+> **New here? Start with [`QUICKSTART.md`](QUICKSTART.md)** — it routes you to the right cookbook and the fastest path. Build a Joule skill: [`agent-skill-recipe.md`](agent-skill-recipe.md). Every external dependency: [`references.md`](references.md).
 > Guided build: [example.md](example.md) (no-code walkthrough) · [CLAUDE.md](CLAUDE.md) (auto-start for coding harnesses)
 > Main repo: [Custom Agentic Solutions CoE cookbook](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE)
 > Program & governance reference: [GDH-AIFactory Agent Program](https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/) — agent lifecycle, customer onboarding, architecture reference, and the vendor-neutral agentic-AI development guide.
@@ -63,11 +64,13 @@ If you want a working agent fast without writing code, use the guided files that
 |---|---|
 | [`example.md`](example.md) | Self-contained, no-code recipe. Drop it in an empty folder, and a coding harness interviews you → builds → tests → launches. |
 | [`CLAUDE.md`](CLAUDE.md) | Auto-loaded by Claude Code when the folder opens. Greets the user, routes them into `example.md`, and enforces the guardrails (work in a new sub-folder, never touch reference files, secrets only in `.env`). |
+| [`agent-skill-recipe.md`](agent-skill-recipe.md) | How to build & publish a **Joule skill** (low-code Skill Builder, or a pro-code `.sapdas.yaml` capability bundle wired to your agent). |
+| [`QUICKSTART.md`](QUICKSTART.md) | The central entry point — route to the right cookbook (AI Factory → CoE → KG) and the fastest build path. |
 
 **Steps for the end user:**
 
 1. Create a new empty folder (e.g. `my-agent/`).
-2. Copy `example.md`, `CLAUDE.md`, and (optionally) this `README-5.md` into it.
+2. Copy `example.md`, `CLAUDE.md`, and (optionally) this `README.md` into it.
 3. Open the folder in Claude Code.
 4. Type **`start`** (auto-start via `CLAUDE.md`) — or paste the kickoff prompt in `example.md` §1.
 5. Answer the interview questions; paste API values into `.env` when asked.
@@ -138,7 +141,7 @@ These are first-class choices — not a hierarchy. Pick the right one for your c
 ```
 User / Joule / External Agent
         ↓ A2A JSON-RPC
-Your CF Agent (port 5000)
+Your CF Agent (port 8080)
         ↓ LiteLLM
 SAP AI Core (Claude / GPT)
         ↓ LangChain tool calls
@@ -230,10 +233,11 @@ Before building, validate these conditions. Discovering them late is expensive.
 
 ### Security
 
+- **Secrets model (canonical)** — **local development** reads secrets from a `.env` file (must be in `.gitignore`, never committed). **Deployed Cloud Foundry / Kyma** never uses `.env`: credentials arrive from service bindings (`VCAP_SERVICES`) or a Kyma Secret injected as runtime env vars. So `.env` is a dev-only convenience; production is runtime-injected env only. (`guidelines-agent.md` states this as "no `.env` in deployed CF" — same rule, deployment side.)
 - **Never commit credentials** — `.env` must be in `.gitignore`. CF credentials come from service bindings (VCAP_SERVICES) in production
 - **CORS policy** — `allow_origins=["*"]` is fine for internal demos; restrict to specific origins before external exposure
 - **Agent Gateway mTLS** — production Agent Gateway uses mutual TLS. Keep `AGW_CREDENTIALS_JSON` in a secrets store, not env vars, for production
-- **Rate limiting** — LLM calls are expensive. Add request throttling before exposing to end users at scale
+- **Rate limiting** — LLM calls are expensive. Add request throttling before exposing to end users at scale. **Starting point:** 60 requests/minute per authenticated user and 600/minute per agent instance (429 with `Retry-After` when exceeded); tune against observed AI Core quota and cost budget.
 
 ### Testing Gate Before CF Push
 
@@ -241,8 +245,8 @@ Before building, validate these conditions. Discovering them late is expensive.
 IBD_TESTING=1 pytest            # all tests pass
 pytest --cov=app                # coverage ≥ 70%
 # Verify mock mode demo works end-to-end
-IBD_TESTING=1 python3 app/main.py &
-curl -s http://localhost:5000/.well-known/agent.json | python3 -m json.tool
+IBD_TESTING=1 python -m app &
+curl -s http://localhost:8080/.well-known/agent.json | python3 -m json.tool
 ```
 
 All of the above must pass before `cf push`. Production 403s on real data are dramatically harder to debug than local mock failures.
@@ -308,8 +312,9 @@ This generates:
 ```
 assets/<agent-name>/
 ├── app/
-│   ├── main.py              ← A2A server entry point
+│   ├── __main__.py          ← A2A server entry point (run via `python -m app`)
 │   ├── agent.py             ← LLM agent + system prompt
+│   ├── agent_card.py        ← Agent card definition (skills, tags, examples)
 │   ├── agent_executor.py    ← A2A protocol adapter
 │   └── mcp_tools.py         ← MCP tool loader
 ├── asset.yaml               ← SAP platform descriptor
@@ -350,8 +355,8 @@ Before connecting any SAP system, make the full agent work in mock mode. This gu
 ```bash
 export IBD_TESTING=1
 pytest                        # all tests must pass
-python3 app/main.py           # start server
-curl http://localhost:5000/.well-known/agent.json   # verify agent card
+python -m app                 # start server
+curl http://localhost:8080/.well-known/agent.json   # verify agent card
 ```
 
 ---
@@ -659,7 +664,7 @@ if os.environ.get("IBD_TESTING") != "1":
 | **401 Unauthorized** | Expired/invalid token | Refresh token once, retry. If still 401 → surface auth error, stop. | Once, after refresh |
 | **403 Forbidden** | Missing role/authorization on the entity | Do **not** retry. Tell user the data is not authorized for them; suggest contacting Basis. | No |
 | **404 Not Found** | Wrong entity set / service alias / record absent | Do **not** retry. State the record/service was not found; never fabricate a substitute. | No |
-| **429 Too Many Requests** | Backend/AI Core throttle | Exponential backoff, retry up to N. If exhausted → ask user to retry later. | Yes, backoff |
+| **429 Too Many Requests** | Backend/AI Core throttle | Exponential backoff (base 1s, ×2, jitter), retry up to **3** attempts. If exhausted → ask user to retry later. | Yes, backoff |
 | **5xx / timeout** | Backend down, Cloud Connector down, proxy timeout | Retry idempotent GETs with backoff. If exhausted → partial answer + explicit gap note. | Yes (GET only) |
 | **AI Core token-expiry** | OAuth token TTL elapsed mid-session | Transparently re-fetch AICORE token, retry. | Yes, transparent |
 
@@ -668,7 +673,7 @@ if os.environ.get("IBD_TESTING") != "1":
 1. **Never return a raw stack trace or SAP error payload to the end user.** Log the detail (with correlation id, see 1b Observability); return an advisory-safe message.
 2. **A failed tool call is a data gap, not a reason to guess.** Combine with the existing system-prompt rule *"When data is missing, state this explicitly and continue with partial simulation + disclaimer"*.
 3. **Retry only idempotent operations.** All SAP calls here are GETs (advisory-only), so retry is safe — but keep the guard explicit so a future writer of a non-GET tool must opt in.
-4. **Circuit-break repeated failures.** After K consecutive failures to the same MCP server/tool, stop calling it for the request and report the outage rather than timing out repeatedly.
+4. **Circuit-break repeated failures.** After **3** consecutive failures to the same MCP server/tool within a request, stop calling it for that request and report the outage rather than timing out repeatedly. (Default `MAX_RETRIES = 3`, matching the 429/5xx rows above.)
 
 ### Pattern
 
@@ -751,7 +756,7 @@ When the user asks about [domain], query [entity set] filtering by [key field].
 The financial fields to always include are: [list fields confirmed from entity probe].
 ```
 
-> `<to be updated>` — Claude Code CLI prompt patterns for SAP-specific prompt generation are evolving. This section will be updated as patterns stabilise.
+> **Prompt-authoring patterns (canonical).** The system-prompt rules above are the source of truth; `guidelines-agent.md` §"System Prompt Best Practices" carries the fuller, copy-pasteable version (explicit guardrails, `top` max 100, empty-result handling, `<200 words` answer discipline, example blocks). When drafting a domain prompt with Claude Code, start from that section and the 6 MANDATORY RULES here, then add the domain-routing lines shown above. Keep every generated prompt subject to the same guardrails — do not weaken rules 1–6 for any domain.
 
 ---
 
@@ -825,7 +830,7 @@ applications:
     disk_quota: 1G
     instances: 1
     buildpacks: [python_buildpack]
-    command: python3 app/main.py --host 0.0.0.0 --port $PORT
+    command: python -m app --host 0.0.0.0 --port $PORT
     health-check-type: http
     health-check-http-endpoint: /.well-known/agent.json   # A2A agent card
     timeout: 180
@@ -840,7 +845,7 @@ applications:
       - my-conn            # Connectivity Service (Mode C only)
 ```
 
-### Read VCAP_SERVICES in `app/main.py`
+### Read VCAP_SERVICES in `app/__main__.py`
 
 CF injects bound service credentials into `VCAP_SERVICES`. Map them before any imports:
 
@@ -892,7 +897,7 @@ curl https://my-agent.cfapps.<region>.hana.ondemand.com/.well-known/agent.json
 ### Add CORS for browser clients
 
 ```python
-# app/main.py — after server.build()
+# app/__main__.py — after server.build()
 from starlette.middleware.cors import CORSMiddleware
 app.add_middleware(CORSMiddleware,
     allow_origins=["*"], allow_methods=["GET","POST","OPTIONS"], allow_headers=["*"])
@@ -942,7 +947,7 @@ In the Joule admin UI:
 Joule routes user queries to your agent based on the skill description and tags in the agent card. Write these thoughtfully:
 
 ```python
-# app/main.py
+# app/agent_card.py
 skill = AgentSkill(
     id="my-agent-skill",
     name="My SAP Agent",
@@ -1070,7 +1075,13 @@ async for event in graph.astream_events(..., version="v2"):
 A self-contained HTML file served directly by the agent for human-readable testing. **Low priority** — build last, use primarily for demos and manual testing. The real interface is the A2A endpoint.
 
 ⚠️ Embedding the /ui HTML/JS in a Python string — avoid the silent-failure traps (any Python version):
-Don't rely on Python's backslash handling in embedded JS. \n, \, \|, \s, \d in a normal string are invalid escape sequences — a DeprecationWarning on Python 3.6+, and silent mangling / hard error on 3.12→3.14 — so JS regex like s.replace(/\n/g,'') arrives garbled and throws a silent parse error that kills the whole
+Don't rely on Python's backslash handling in embedded JS. `\n`, `\`, `\|`, `\s`, `\d` in a normal string are invalid escape sequences — a DeprecationWarning on Python 3.6+, and silent mangling / hard error on 3.12→3.14 — so JS regex like `s.replace(/\n/g,'')` arrives garbled and throws a silent parse error that kills the whole page/script.
+
+**Do this instead:**
+- Put the HTML/JS in a **raw triple-quoted string** (`HTML = r"""..."""`) so Python never touches the backslashes, or better, serve it from a separate `app/ui.html` file read at startup (`Path(__file__).parent / "ui.html"`).
+- Wire events with **`addEventListener`**, not inline `onclick="..."` handlers — inline handlers fail silently when the string is mangled and are harder to debug.
+- Keep JS regexes and escapes in the external file / raw string; never hand-escape them into a normal Python string.
+- Test the page in a browser (open `/ui`) before relying on it for a demo — a mangled script often renders a blank or half-working page with no server error.
 
 ### Future: `/v1/chat/completions` — OpenAI-compatible
 
@@ -1178,16 +1189,13 @@ team capability, risk appetite, and how far the 1.0 agent already meets §9.1.
 
 #### 9.3.1 Standard migration
 
-> **`<Information Awaited>`** — the standard (self-service) migration offering is
-> being finalised. This section will be completed once the standard-service scope,
-> tooling, prerequisites, and SLA are confirmed.
-
-Expected shape (to be confirmed):
+> **Status: the standard (self-service) migration offering is not GA as of 2026-09-15 — treat this as *prepare-only*.** The switchable-code contract (A2A surface, `asset.yaml` ORD IDs, `LLM_PROVIDER` isolation) is stable and is what a standard migration will consume, so you can be fully ready today; the self-service *tooling* and its SLA are still being finalised by the platform team. Until it ships, execute the migration via the [§9.4 steps](#94-what-changes-in-joule-20) manually, or use the Support & Advisory service ([§9.3.2](#932-service--support--advisory-new-business-ai-architect-service)).
 
 - **Model:** self-service, following this guide's [§9.4 migration steps](#94-what-changes-in-joule-20) and the [Agent-PathToProd](#agent-pathtoprod) Stage 8 checklist.
 - **Prerequisites:** 1.0 agent passes the §9.1 readiness gate; target landscape confirmed per §9.2.
-- **Scope:** _`<Information Awaited>`_ — tooling, automated registration path, supported regions, and support boundaries.
+- **Scope (expected, confirm with the platform team when GA):** an automated re-registration path that reads existing `asset.yaml` ORD IDs, points Joule 2.0 at the same A2A endpoint, and validates against the Stage 8 checklist — no code changes. Supported regions will track Joule 2.0 GA (commercial first; sovereign/regulated later — see [§1c](#1c-regional--sovereign-deployments)). Support boundary: self-service, community/standard support.
 - **When to use:** agent already meets §9.1; team has BTP/Joule operational skills; low-to-standard complexity.
+- **Interim action:** keep the agent on the §9.1 readiness gate and re-check Joule 2.0 / standard-migration GA each planning cycle; nothing to build now beyond staying 2.0-ready.
 
 #### 9.3.2 Service — Support & Advisory (new Business AI Architect service)
 
@@ -1437,6 +1445,8 @@ One master checklist — from zero to Joule-registered production. Each item is 
 
 Each gate must pass before the next stage starts.
 
+> **Two checklists, one system — how they relate.** This **Stage 0–8** list is the *build-and-deploy engineering* checklist (what to do, in order, to ship the agent). The **L0-1 → L0-10** list in [`developer-toolkit.md` §10](developer-toolkit.md) is the *governance-pillar* checklist (70 controls the Architecture Group signs off). They are complementary, not rival: the build stages *execute*, the L0 pillars *govern*. `developer-toolkit.md` §6 maps each build stage to the L0 pillars it satisfies. When a control ID or count differs anywhere, **`developer-toolkit.md` §10 is canonical.**
+
 ---
 
 Stage 0 — Pre-build validation
@@ -1472,14 +1482,14 @@ Stage 3 — Auth & resilience hardening
 [ ] [code] Error taxonomy handled; no raw traces to users; retry GETs only
 [ ] [code] Advisory-only: no POST/PATCH/DELETE; top=100; never fabricate
 [ ] [code] Conversation state externally persisted, keyed by contextId + user identity
-[ ] [code] Token-window cap + tool-payload summarization in place
+[ ] [code] Token-window cap + tool-payload summarization in place (cap prompt context to the model window minus ~20% headroom; summarize/truncate any single tool payload > 8 KB before it enters context)
 
 Stage 4 — Observability & security
 [ ] [deploy] application-logs bound; CF log drain + 403/404 alerts configured
 [ ] [code] Structured logs: correlation_id, tool_name, sap_mode, tokens, latency
 [ ] [code] PII redacted; prompt version stamped in logs
 [ ] [code] No credentials committed; .env gitignored; VCAP bindings in prod
-[ ] [deploy] CORS + rate limiting hardened for external exposure
+[ ] [deploy] CORS + rate limiting hardened for external exposure (restrict `allow_origins` to specific hosts, not `*`; default rate 60 req/min per user + 600 req/min per instance, 429 + `Retry-After` when exceeded — see §Security)
 
 Stage 5 — Cloud Foundry deployment
 [ ] [code] manifest.yml: 512M, health-check on /.well-known/agent.json, SAP_MODE, AGENT_PUBLIC_URL

@@ -102,16 +102,24 @@ Produce a recommendation covering:
 
 **Decision aid (guidance, not rules — Claude adapts):**
 
+> **Evaluate the [GDH AI Factory dev-tools](https://github.tools.sap/CE-A-Global-AI-Agents/cea-csd-gdh-dev-tools) cookbook first (primary).** Then pick the build route: start with the general **CoE** route unless the use case explicitly requires graph semantics, ontology-driven grounding, or relationship-centric reasoning — in which case use the **KG** route. (This mirrors the portal's [repository-decision](https://pages.github.tools.sap/GDH-Data-AI-Architecture-APAC/agent-blueprint/) rule.)
+
 | If the use case is dominated by… | Lean toward… |
 |---|---|
-| General business logic, tool/API actions, fast prototyping | **CoE Cookbook** |
-| Entity relationships, ontologies, semantic / multi-hop reasoning, structured KG grounding | **KG Cookbook** |
+| General business logic, tool/API actions, fast prototyping | **CoE Cookbook** (default build route) |
+| Entity relationships, ontologies, semantic / multi-hop reasoning, structured KG grounding, high explainability (citable, source-traceable facts) | **KG Cookbook** (specialized route) |
+| Standard document Q&A | Evaluate SAP **Document Grounding Service** first; build custom RAG/KG only if you need custom chunking, structure-aware extraction, chunk-level ACL, or vector-store control |
 | Greenfield, unsure where to start, want the full guided scaffold + guardrails | **Agent-GoldenPath-Kit** scaffold |
-| Document-heavy Q&A / grounding | Either cookbook + RAG grounding (see §6 Connect) |
 
 ---
 
 ## 4 · Cookbook and accelerator catalog
+
+### GDH AI Factory dev-tools — *the PRIMARY cookbook (evaluate first)*
+- **Purpose:** the global GDH AI Factory developer toolset — the reference cookbook every custom-agent initiative evaluates first, before choosing a build route.
+- **Best-fit scenarios:** all initiatives — consult it as the primary reference for standards and dev-tools, then pick CoE (default) or KG (graph semantics) as the build route.
+- **Ownership:** maintained by the Global AI Agents team — **consume it as a reference; do not fork it for edits.**
+- **Repository:** <https://github.tools.sap/CE-A-Global-AI-Agents/cea-csd-gdh-dev-tools>
 
 ### CoE Cookbook — *Custom-Agentic-Solutions-CoE*
 - **Purpose (plain language):** the main global build engine — scaffolding, toolkit, connectivity, and deployment for general SAP custom agents.
@@ -123,13 +131,26 @@ Produce a recommendation covering:
 - **Quick-start:** clone → `sap-agent-bootstrap` → mock mode (see §6).
 
 ### KG Cookbook — *Cookbook-KG-CustomAI*
-- **Purpose:** Knowledge-Graph-grounded agents on SAP HANA RDF — ontology, semantic search, multi-hop reasoning.
-- **Best-fit scenarios:** relationship-rich enterprise use cases, explainable reasoning over entities, structured grounding.
-- **Prerequisites:** SAP HANA Cloud (RDF/Vector), KG data model, AI Core.
+- **Purpose:** Knowledge-Graph-grounded agents on the SAP HANA Cloud Knowledge Graph Engine (SPARQL 1.1 triple store) + native vector index — ontology, semantic search, multi-hop reasoning, source-traceable answers.
+- **Best-fit scenarios:** relationship-rich enterprise use cases, explainable reasoning over entities, structured grounding, cross-domain knowledge integration.
+- **Prerequisites:** SAP HANA Cloud (RDF/Vector), a data model / ontology, AI Core.
 - **Skill level:** developer; some data-modelling familiarity helps.
+- **Build sequence (the KG/RAG build primitives are the `sap-hana-*` skills):**
+  1. **`sap-hana-data-prep`** — turn raw source data into HANA-ingestion-ready artifacts; produces an `ingestion-contract.yaml` (`target_shape: hana_vector | hana_triple | relational_hana | hybrid`). **Run this before** the triple/vector skills — they refuse to proceed without a matching contract.
+  2. **`sap-hana-triple`** (KG track) — SPARQL 1.1 on the HANA triple store: `CREATE GRAPH … WORKSPACE`, ontology in `ontology/*.ttl`, bulk load via `SPARQL INSERT DATA`, NL→SPARQL→answer pattern. Hybrid KG+vector supported via `REAL_VECTOR` pre-filter.
+  3. **`sap-hana-vector`** (RAG track) — `REAL_VECTOR` columns, `VECTOR_EMBEDDING()`, HNSW `COSINE_SIMILARITY` index.
+  - **Authoring pipeline:** `/sap-knowledge-scoping` interview → `/create-model-proposal` (EKG-validated via `ask_ekn`) → human review in **Revisor** (the only human gate before triples enter HANA) → export TTL → `pipeline/load.py` → `build_index.py --source <CODE>`.
+- **KG governance essentials (from the GDH KG architecture guidance):**
+  - **Ownership** — every ontology TTL has exactly one named owner; reassign within 10 business days or the artefact enters Sunset.
+  - **Change control** — TTL changes via PR + peer review + Domain Lead sign-off + Revisor review; no direct commits to main; semantic versioning (MAJOR = full reload).
+  - **IRI namespace discipline** — custom types **must** use the `EXT` segment: `https://ekg.cloud.sap/EXT/{CUSTOMER}/{SOLUTION}/{Entity}`; never reuse SAP-owned segments.
+  - **RBAC (3 layers)** — dedicated named HANA user per graph (never DBADMIN); `ACL_TAGS` SQL pre-filter applied **before** vector search; XSUAA JWT at the API gateway. Sensitive predicates emitted only as source-qualified (unreachable from generic traversal).
+  - **Source of truth** — the source system is authoritative; the KG is a disposable, rebuildable derived view (delete-and-replace refresh per source namespace).
+  - **Alignment relations** — SAP EKG guidance prefers `rdfs:subClassOf` + `isDerivativeOf` over `owl:equivalentClass` (too strong); `owl:sameAs` at instance level only.
+  - **ARB / AI Ethics** — Level 3+ autonomy (OData write-back) requires Architecture Review Board + AI Ethics review; personal-data predicates documented, never emitted as generic `core:` predicates.
 - **Limitations:** heavier setup; overkill for simple tool-calling agents.
 - **Reference / program:** <https://pages.github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc/>
-- **Quick-start:** model the KG grounding first, then scaffold (see §6 Connect).
+- **Quick-start:** model the KG grounding first (data-prep → triple/vector), then scaffold (see §6 Connect).
 
 ### Agent-GoldenPath-Kit — *the starter kit (this repo)*
 - **Purpose:** clone-and-go starter bundling cookbooks, accelerators, this toolkit, and the checklist guardrails for Claude Code.
@@ -367,7 +388,7 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 - [ ] **1.3 AI Golden Path** — SAP's prescribed governance pathway; undocumented deviations are a release blocker. — [Golden Path](https://architecture.learning.sap.com/docs/ai-golden-path)
 - [ ] **1.4 Document AI Commercialization Track** — Compare per-page vs accelerator volume economics; document break-even before customer-scale processing. — [Pricing](https://www.sap.com/products/artificial-intelligence/ai-units.html)
 - [ ] **1.5 GDH APAC Data & AI Architect Group Support** — Engage the central architect group early for design review, platform guidance, escalation paths; confirm before build. — [ESCE](https://ekg.cloud.sap/SAP/LX/TM/TRM/ESCE5CF3FCDB46F61EE7A8859EFC21919645)
-- [ ] **1.6 Onboarding Agent Templates** — Point to the central GDH APAC md carrying both cookbooks. *(To be finalised.)* — [CoE](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE) · [KG Program](https://github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc)
+- [ ] **1.6 Onboarding Agent Templates** — Start from [`QUICKSTART.md`](QUICKSTART.md), the central GDH APAC entry point that routes you to the right cookbook (AI Factory dev-tools first → CoE default build route → KG when graph semantics are needed) and the matching templates. — [QUICKSTART](QUICKSTART.md) · [references.md](references.md) · [CoE](https://github.tools.sap/business-ai-platform/Custom-Agentic-solutions-CoE) · [KG Program](https://github.tools.sap/GDH-AIFactory-CodeAgents-KG/doc)
 
 ### L0-2 · LLM Selection & Benchmarking
 *Select the right model per use case, balancing performance and cost.*
@@ -379,6 +400,7 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 - [ ] **2.5 Ongoing Model Version Re-evaluation** — Re-run the suite on any provider update/patch/infra swap; resolve regressions before customer tenants. Triggers 10.3. — [AI Launchpad](https://help.sap.com/docs/ai-launchpad/sap-ai-launchpad/what-is-sap-ai-launchpad?locale=en-US)
 - [ ] **2.6 Frontier Model Justification Gate** `NEW` — Document why a frontier model beats a cheaper one per agentic decision step (evidence from 2.2); dual approval before provisioning. — [Gen AI Hub](https://www.sap.com/products/artificial-intelligence/generative-ai-hub.html)
 - [ ] **2.7 Model Update & Retraining Governance** `NEW` — Fine-tuning cadence, swap schedule, customer notification, data-usage policy; attest no customer data used without consent. Connects to 10.6. — [Responsible AI](https://www.sap.com/india/products/artificial-intelligence/ai-ethics.html)
+- [ ] **2.8 Benchmarking Agent (J1199)** — SAP's managed benchmarking feature for standardised multi-model comparison; use its results as supporting evidence for 2.2/2.6 where available. — [Gen AI Hub](https://www.sap.com/products/artificial-intelligence/generative-ai-hub.html)
 
 ### L0-3 · Document Grounding & RAG Quality Evaluation
 *Ground outputs in enterprise documents; validate with the RAG Triad.*
@@ -419,9 +441,9 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 *Tooling, patterns, governance for building, registering, deploying.*
 
 - [ ] **6.1 Agent Builder in Joule Studio** — Configure/test/register agents against the SAP agent framework; agents built outside need an exception + security review. — [Agent Builder](https://www.sap.com/products/financial-management/joule-studio-agent-builder.html)
-- [ ] **6.2 Skill Builder in Joule Studio** — Define/test/publish skills; each maps to backend APIs with a declared scope; auto-registered in 6.4; include I/O schema, error handling, latency SLA. — [Joule Studio](https://www.sap.com/products/artificial-intelligence/joule-studio.html)
+- [ ] **6.2 Skill Builder in Joule Studio** — Define/test/publish skills; each maps to backend APIs with a declared scope; auto-registered in 6.4; include I/O schema, error handling, latency SLA. **How-to:** [`agent-skill-recipe.md`](agent-skill-recipe.md) (low-code Skill Builder + pro-code `.sapdas.yaml` capability bundle). — [Joule Studio](https://www.sap.com/products/artificial-intelligence/joule-studio.html)
 - [ ] **6.3 Generative AI Hub (J17)** — Managed LLM access layer; all LLM calls route through it for access control, audit, cost metering. — [Gen AI Hub](https://www.sap.com/products/artificial-intelligence/generative-ai-hub.html)
-- [ ] **6.4 Skills Governance Agent (J1426)** — Catalog of approved skills (version control, access policy, quality). *KG identifies this as J2259 — verify the current feature ID.* — [Skills Gov (J2259)](https://learning.sap.com/courses/exploring-joule-and-ai-agents-in-sap-successfactors/introducing-skills-assistants-and-agents_ad8e62d6-372b-4ba4-ad74-152130786666)
+- [ ] **6.4 Skills Governance Agent (J2259)** — Catalog of approved skills (version control, access policy, quality). *Feature ID standardised to **J2259** per the KG program's current catalogue; the older **J1426** reference is superseded — confirm against the live Skills Governance catalogue before relying on either.* — [Skills Gov (J2259)](https://learning.sap.com/courses/exploring-joule-and-ai-agents-in-sap-successfactors/introducing-skills-assistants-and-agents_ad8e62d6-372b-4ba4-ad74-152130786666)
 - [ ] **6.5 SAP AI Core & AI Launchpad** — AI Core is the serving runtime for agentic workloads; AI Launchpad the ops interface; use AI Core unless an approved exception. — [AI Core API](https://ekg.cloud.sap/SAP/BAH/SAPIH/RAP/AICoreAI_CORE_API)
 - [ ] **6.6 Agent Tool Access Governance** `NEW` — RBAC for all tool invocations, per-tenant policy, least privilege, approval workflow; enumerate callable tools, min scope, audit-log schema; SoD for financial/procurement/HR writes. — [RBAC](https://ekg.cloud.sap/SAP/LX/TM/CPT/RoleBasedAccessControl42010AEF0E491EECB388711182364F45)
 - [ ] **6.7 Human-in-the-Loop Approval Governance** `NEW` — Define which actions need mandatory human sign-off vs autonomous; action classification table; override events logged with approver/timestamp/reason. — [Human-in-the-Loop](https://ekg.cloud.sap/SAP/LX/TM/TRM/HumanInTheLoop42010AEF4E231FD0B1BF8B43444361B3)
@@ -430,7 +452,7 @@ Each example resolves to: user answers → recommended cookbook/accelerator → 
 ### L0-7 · End-to-End Release Validation & Go-Live
 *Final gate confirming all pillars are satisfied before release.*
 
-- [ ] **7.1 AI-Driven Exploratory Testing (AET)** — J1186 generates/executes test cases across the functional surface incl. edge cases. *GA Dec 2027 — verify availability, keep an interim approach.* — [AET](https://ekg.cloud.sap/SAP/MXP/JV/AIF/AIDrivenExploratoryTestingAETAutomatedTestCaseGenerationJ1186)
+- [ ] **7.1 AI-Driven Exploratory Testing (AET)** — J1186 generates/executes test cases across the functional surface incl. edge cases. *Not GA until Dec 2027 — verify availability each planning cycle. **Interim approach (mandatory until AET is GA):** maintain a versioned regression suite (see 7.6) with a hand-authored golden set covering the functional surface + known edge cases, run on every model/tool/prompt change; treat a regression as a release blocker.* — [AET](https://ekg.cloud.sap/SAP/MXP/JV/AIF/AIDrivenExploratoryTestingAETAutomatedTestCaseGenerationJ1186)
 - [ ] **7.2 Integration Validation** — End-to-end with all backends/APIs under production-like conditions; auth, permission boundaries, downstream failure, peak load; repeat after any change. — [AI Core API](https://ekg.cloud.sap/SAP/BAH/SAPIH/RAP/AICoreAI_CORE_API)
 - [ ] **7.3 CBC Toggle Activation** — Final config step before live; test activation + deactivation; document and test rollback. Monitored by 10.5.
 - [ ] **7.4 Cross-Functional Sign-Off** — Product, Engineering, Commercialisation, Legal/Compliance, Responsible AI, Support (ESCE), Security; final gate before CBC + release record. — [ESCE](https://ekg.cloud.sap/SAP/LX/TM/TRM/ESCE5CF3FCDB46F61EE7A8859EFC21919645)

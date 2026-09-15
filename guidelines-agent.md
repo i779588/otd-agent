@@ -49,7 +49,7 @@ Technical constraints and patterns for building Pro-Code AI Agents. Follow these
 - Update `requirements.txt` for any new dependencies
 - Never modify `sys.path`
 - Map SAP Joule Studio/Skills concepts to standard agent tools
-- No `.env` files (environment variables supplied at runtime)
+- No `.env` files **in the deployed CF/Kyma runtime** — environment variables are supplied at deployment via service bindings (VCAP_SERVICES) / Kyma Secrets. A local `.env` (gitignored) is allowed for **local development only**. See README §Security "Secrets model (canonical)".
 
 ## LLM Integration Patterns
 
@@ -1275,7 +1275,7 @@ AICORE_SERVICE_KEY="<json_service_key>"
 AICORE_DEPLOYMENT_ID="<deployment_id>"
 AICORE_DEPLOYMENT_URL="<full_deployment_url>"
 AICORE_RESOURCE_GROUP="default"
-MODEL_NAME="gpt-5.5"
+AGENT_MODEL="sap/anthropic--claude-3.5-sonnet"   # canonical model var (see README §1a / Quick Reference)
 
 # Server Configuration
 HOST="0.0.0.0"
