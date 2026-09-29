@@ -16,3 +16,10 @@ opentelemetry-instrumentation-starlette==0.65b0
 google-re2==1.1.20251105
 PyYAML==6.0.3
 pydantic==2.12.3
+# SAP Gen AI Hub SDK — enables OTD_LLM_ROUTE=aicore (compliant Golden Path).
+# Pulls in ai-core-sdk and ai-api-client-sdk automatically.
+# botocore + langchain-aws are required by gen_ai_hub's Bedrock/Amazon backend
+# (SAP serves Claude via AWS Bedrock under the hood).
+sap-ai-sdk-gen>=7.4.1
+botocore>=1.38.0
+langchain-aws>=0.2.0

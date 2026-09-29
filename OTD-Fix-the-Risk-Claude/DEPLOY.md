@@ -11,6 +11,17 @@ This packages the OTD agent to run its **LLM reasoning on the Anthropic API
 directly** (off SAP AI Core / Gen AI Hub), while remaining a standard **A2A
 agent that Joule can front** via its agent card.
 
+Two LLM routing modes are available (selected via `OTD_LLM_ROUTE`):
+
+| Mode | Value | LLM path | Governance |
+|---|---|---|---|
+| **Direct** (default) | `direct` | Anthropic API via LiteLLM + `ANTHROPIC_API_KEY` | ⚠️ Deviation — needs exception before production |
+| **AI Core** (compliant) | `aicore` | SAP Gen AI Hub → AI Core → AWS Bedrock | ✅ Golden Path — set for production |
+
+The `aicore` path targets deployment **`d009d0ca6a44ae29`** at
+`https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com`.
+Credentials come from `AICORE_*` env vars (service key from BTP cockpit).
+
 **In scope for the Claude deployment:** the A2A server, LLM routing to Anthropic,
 tools (mock now / read-only OData bridge later), identity propagation scaffold,
 and — optionally, gated — registering the agent card with Joule.
@@ -35,7 +46,12 @@ production use.
 ## 0. Prerequisites
 
 - Python 3.11+
-- An Anthropic API key (`ANTHROPIC_API_KEY`) — reasoning is billed by Anthropic.
+- **For `OTD_LLM_ROUTE=direct`:** an Anthropic API key (`ANTHROPIC_API_KEY`).
+  Reasoning billed by Anthropic; governance deviation (see §4 and
+  `agent-outcome-report.md`).
+- **For `OTD_LLM_ROUTE=aicore` (recommended for production):** an AI Core
+  service key from BTP → Instances and Subscriptions → your AI Core instance →
+  Service Keys. Provides `clientid`, `clientsecret`, `url`, and the AI API URL.
 - `cp .env.example .env` and fill it in. Secrets live in `.env` only.
 
 ## 1. Install
@@ -81,35 +97,46 @@ curl -s http://localhost:5000/.well-known/agent-card.json | head
 
 ## 4. Run locally — live mode (read-only OData) **[GATED]**
 
-Only once you have a tenant + credentials. This path runs off SAP AI Core — a
-Golden Path deviation that needs the exception in `agent-outcome-report.md` §4
-cleared before any real/customer data flows.
+Only once you have a tenant + credentials.
 
 **4a. Configure `.env`** (secrets live here only).
 
-*Default — `basic` mode (fixed technical user, fastest live test):*
+*Default — `direct` mode (Anthropic API, fastest live test but governance deviation):*
 
 ```bash
+OTD_LLM_ROUTE=direct
+ANTHROPIC_API_KEY=sk-ant-...
 OTD_TOKEN_EXCHANGE_MODE=basic
 OTD_S4_USER=<S/4HANA Cloud communication user>
 OTD_S4_PASSWORD=<its password>
 OTD_SERVICE_BASE_URLS={"sap.s4:apiResource:CE_SALESORDER_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_salesorder/srvd_a2x/sap/salesorder/0001","sap.s4:apiResource:WAREHOUSEAVAILABLESTOCK_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_warehouse_available_stock/srvd_a2x/sap/warehouseavailablestock/0001","sap.s4:apiResource:API_PRODUCTION_ORDER_2_SRV:v1":"https://<s4-host>/sap/opu/odata/sap/API_PRODUCTION_ORDER_2_SRV","sap.s4:apiResource:API_OUTBOUND_DELIVERY_SRV_0002:v2":"https://<s4-host>/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV;v=0002","sap.s4:apiResource:CE_FREIGHTORDER_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_freightorder/srvd_a2x/sap/freightorder/0001"}
 ```
 
+*Recommended for production — `aicore` mode (SAP Gen AI Hub, Golden Path):*
+
+```bash
+OTD_LLM_ROUTE=aicore
+AICORE_BASE_URL=https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com
+AICORE_AUTH_URL=https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token
+AICORE_CLIENT_ID=<clientid from service key>
+AICORE_CLIENT_SECRET=<clientsecret from service key>
+AICORE_RESOURCE_GROUP=default
+AICORE_DEPLOYMENT_ID=d009d0ca6a44ae29
+OTD_TOKEN_EXCHANGE_MODE=basic
+OTD_S4_USER=<S/4HANA Cloud communication user>
+OTD_S4_PASSWORD=<its password>
+OTD_SERVICE_BASE_URLS={...same map as above...}
+```
+
+The service key JSON fields map to env vars as: `clientid` → `AICORE_CLIENT_ID`,
+`clientsecret` → `AICORE_CLIENT_SECRET`, `url` → `AICORE_AUTH_URL` (append
+`/oauth/token`), the AI API URL → `AICORE_BASE_URL`.
+Alternatively, paste the entire service key JSON as `AICORE_SERVICE_KEY`.
+
 The communication user must be assigned (via a Communication Arrangement) to the
 inbound services exposing these 5 OData APIs, else calls return `403`. Every call
 acts as this one identity (no per-user RBAC) — a documented deviation from the
 production principal-propagation model (see `agent-outcome-report.md` §4).
-
-*Upgrade path — `destination` mode (per-user principal propagation, no S/4 creds in the app):*
-
-```bash
-OTD_TOKEN_EXCHANGE_MODE=destination
-BTP_DESTINATION_URL=https://<subaccount>.dest-configuration.<region>.hana.ondemand.com/destination-configuration/v1
-BTP_DESTINATION_NAME=<your-s4-destination>
-BTP_DESTINATION_TOKEN=<oauth-token-for-the-destination-service>
-OTD_SERVICE_BASE_URLS={...same map as above...}
-```
 
 **4b. Smoke-test connectivity first (read-only — one `$metadata` GET per service):**
 
@@ -193,7 +220,9 @@ cf push -f manifest.yml
 ```
 
 **8c. Set the secrets / env-specific values** (never in the manifest), then restage.
-The manifest defaults `OTD_TOKEN_EXCHANGE_MODE=basic`, so set the technical-user creds:
+The manifest defaults `OTD_TOKEN_EXCHANGE_MODE=basic` and `OTD_LLM_ROUTE=direct`.
+
+*For `OTD_LLM_ROUTE=direct` (Anthropic API, governance deviation):*
 
 ```bash
 cf set-env otd-fix-the-risk-agent ANTHROPIC_API_KEY      "sk-ant-..."
@@ -203,6 +232,26 @@ cf set-env otd-fix-the-risk-agent OTD_SERVICE_BASE_URLS  '{"sap.s4:apiResource:C
 cf set-env otd-fix-the-risk-agent AGENT_PUBLIC_URL        "https://<the-assigned-route>/"
 cf restage otd-fix-the-risk-agent
 ```
+
+*For `OTD_LLM_ROUTE=aicore` (SAP Gen AI Hub — Golden Path, recommended for production):*
+
+```bash
+cf set-env otd-fix-the-risk-agent OTD_LLM_ROUTE           "aicore"
+cf set-env otd-fix-the-risk-agent AICORE_BASE_URL          "https://api.ai.prod.us-east-1.aws.ml.hana.ondemand.com"
+cf set-env otd-fix-the-risk-agent AICORE_AUTH_URL          "https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token"
+cf set-env otd-fix-the-risk-agent AICORE_CLIENT_ID         "<clientid from service key>"
+cf set-env otd-fix-the-risk-agent AICORE_CLIENT_SECRET     "<clientsecret from service key>"
+cf set-env otd-fix-the-risk-agent AICORE_RESOURCE_GROUP    "default"
+cf set-env otd-fix-the-risk-agent AICORE_DEPLOYMENT_ID     "d009d0ca6a44ae29"
+cf set-env otd-fix-the-risk-agent OTD_S4_USER              "<communication user>"
+cf set-env otd-fix-the-risk-agent OTD_S4_PASSWORD          "<its password>"
+cf set-env otd-fix-the-risk-agent OTD_SERVICE_BASE_URLS    '{"sap.s4:apiResource:CE_SALESORDER_0001:v1":"https://<s4-host>/...", ...}'
+cf set-env otd-fix-the-risk-agent AGENT_PUBLIC_URL          "https://<the-assigned-route>/"
+cf restage otd-fix-the-risk-agent
+```
+
+Alternatively for `aicore`, paste the whole service key JSON as one variable instead
+of the four individual vars: `cf set-env ... AICORE_SERVICE_KEY '{...}'`.
 
 For the `destination` upgrade path instead, set `OTD_TOKEN_EXCHANGE_MODE=destination`
 + `BTP_DESTINATION_NAME` (with the bound service from 8a), or — off the bound

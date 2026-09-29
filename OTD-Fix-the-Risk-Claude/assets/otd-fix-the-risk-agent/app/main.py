@@ -13,6 +13,7 @@ from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from sap_cloud_sdk import bootstrap
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.cors import CORSMiddleware
 
 from agent_executor import AgentExecutor
 from mcp_providers.agw import set_user_token, reset_user_token
@@ -67,6 +68,13 @@ def main(host: str, port: int):
                 reset_user_token(token_ctx)
 
     app.add_middleware(JWTContextMiddleware)
+    # CORS for the demo UI (any local origin allowed; restrict for production)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     bootstrap(app)
 
