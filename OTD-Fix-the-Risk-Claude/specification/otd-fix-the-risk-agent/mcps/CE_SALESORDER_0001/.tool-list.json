@@ -1,0 +1,265 @@
+[
+  {
+    "name": "get_metadata_sap_self",
+    "title": "get_metadata_sap_self",
+    "description": "Get metadata of the OData service with optional filtering to reduce token consumption.\nReturns the metadata in XML format, which can be used to discover available entities and their properties.\nCall this endpoint every time before you call other tools to ensure understanding of the schema.\nBased on the metadata, you can dynamically create an OData request.\n\nUse filtering parameters to get specific metadata sections. Without parameters, this tool returns the complete XML metadata (which might be huge).\nOnly use the specified enum values for the filtering parameters.\n",
+    "odataType": {
+      "metadataRequest": {},
+      "responseHeaders": [
+        {
+          "name": "age"
+        },
+        {
+          "name": "cache-control"
+        },
+        {
+          "name": "expires"
+        },
+        {
+          "name": "last-modified"
+        },
+        {
+          "name": "x-request-id"
+        },
+        {
+          "name": "x-correlation-id"
+        },
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "content-encoding"
+        },
+        {
+          "name": "content-language"
+        },
+        {
+          "name": "content-length"
+        },
+        {
+          "name": "odata-version"
+        },
+        {
+          "name": "etag"
+        },
+        {
+          "name": "vary"
+        },
+        {
+          "name": "sap-messages"
+        }
+      ]
+    }
+  },
+  {
+    "name": "batch_for_sap_self",
+    "title": "batch_for_sap_self",
+    "description": "Execute multiple OData operations in a single batch request using the $batch endpoint.",
+    "odataType": {
+      "batchRequest": {},
+      "responseHeaders": [
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "content-length"
+        },
+        {
+          "name": "odata-version"
+        }
+      ]
+    }
+  },
+  {
+    "name": "list_salesorder_for_sap_self",
+    "title": "list_SalesOrder_for_sap_self",
+    "description": "Retrieve a list of entities from the SalesOrder collection in the sap_self service. Supports OData query options for filtering, sorting, ranking ($top), skipping ($skip), expanding related entities, counting, selecting specific properties.",
+    "odataType": {
+      "entitySet": {
+        "name": "SalesOrder",
+        "crudOperation": "read",
+        "parameters": [
+          {
+            "name": "filter"
+          },
+          {
+            "name": "select"
+          },
+          {
+            "name": "orderby"
+          },
+          {
+            "name": "top"
+          },
+          {
+            "name": "skip"
+          },
+          {
+            "name": "expand"
+          },
+          {
+            "name": "count"
+          }
+        ]
+      },
+      "responseHeaders": [
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "odata-version"
+        }
+      ]
+    }
+  },
+  {
+    "name": "get_salesorder_for_sap_self",
+    "title": "get_SalesOrder_for_sap_self",
+    "description": "Retrieve a single Sales Order entity by its key.",
+    "odataType": {
+      "entitySet": {
+        "name": "SalesOrder",
+        "crudOperation": "readByKey",
+        "parameters": [
+          {
+            "name": "SalesOrder",
+            "newParameterName": "salesorder"
+          },
+          {
+            "name": "select"
+          },
+          {
+            "name": "expand"
+          }
+        ]
+      },
+      "responseHeaders": [
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "odata-version"
+        }
+      ]
+    }
+  },
+  {
+    "name": "list_salesorderitem_for_sap_self",
+    "title": "list_SalesOrderItem_for_sap_self",
+    "description": "Retrieve a list of Sales Order Items. Supports OData query options.",
+    "odataType": {
+      "entitySet": {
+        "name": "SalesOrderItem",
+        "crudOperation": "read",
+        "parameters": [
+          {
+            "name": "filter"
+          },
+          {
+            "name": "select"
+          },
+          {
+            "name": "orderby"
+          },
+          {
+            "name": "top"
+          },
+          {
+            "name": "skip"
+          },
+          {
+            "name": "expand"
+          },
+          {
+            "name": "count"
+          }
+        ]
+      },
+      "responseHeaders": [
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "odata-version"
+        }
+      ]
+    }
+  },
+  {
+    "name": "get_salesorderitem_for_sap_self",
+    "title": "get_SalesOrderItem_for_sap_self",
+    "description": "Retrieve a single Sales Order Item by key.",
+    "odataType": {
+      "entitySet": {
+        "name": "SalesOrderItem",
+        "crudOperation": "readByKey",
+        "parameters": [
+          {
+            "name": "SalesOrder",
+            "newParameterName": "salesorder"
+          },
+          {
+            "name": "SalesOrderItem",
+            "newParameterName": "salesorderitem"
+          },
+          {
+            "name": "select"
+          },
+          {
+            "name": "expand"
+          }
+        ]
+      },
+      "responseHeaders": [
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "odata-version"
+        }
+      ]
+    }
+  },
+  {
+    "name": "list_salesorderscheduleline_for_sap_self",
+    "title": "list_SalesOrderScheduleLine_for_sap_self",
+    "description": "Retrieve Sales Order Schedule Lines. Supports OData query options.",
+    "odataType": {
+      "entitySet": {
+        "name": "SalesOrderScheduleLine",
+        "crudOperation": "read",
+        "parameters": [
+          {
+            "name": "filter"
+          },
+          {
+            "name": "select"
+          },
+          {
+            "name": "orderby"
+          },
+          {
+            "name": "top"
+          },
+          {
+            "name": "skip"
+          },
+          {
+            "name": "expand"
+          },
+          {
+            "name": "count"
+          }
+        ]
+      },
+      "responseHeaders": [
+        {
+          "name": "content-type"
+        },
+        {
+          "name": "odata-version"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,34 @@
+apiVersion: asset.sap/v1
+kind: Asset
+type: python-agent
+
+metadata:
+  name: otd-fix-the-risk-agent
+  version: "1.0.0"
+
+provides:
+  apis:
+    - name: otd-fix-the-risk-agent
+      kind: agent
+      ordId: customer.build:apiResource:otd-fix-the-risk-f8547.otd-fix-the-risk-agent:v1
+
+requires:
+  - name: sap-s4-ce-salesorder-0001-mcp-server
+    kind: mcp-server
+    ordId: customer.build:apiResource:otd-fix-the-risk-f8547.sap-s4-ce-salesorder-0001-mcp-server:v1
+
+  - name: sap-s4-warehouseavailablestock-0001-mcp-server
+    kind: mcp-server
+    ordId: customer.build:apiResource:otd-fix-the-risk-f8547.sap-s4-warehouseavailablestock-0001-mcp-server:v1
+
+  - name: sap-s4-api-production-order-2-srv-mcp-server
+    kind: mcp-server
+    ordId: customer.build:apiResource:otd-fix-the-risk-f8547.sap-s4-api-production-order-2-srv-mcp-server:v1
+
+  - name: sap-s4-api-outbound-delivery-srv-0002-mcp-server
+    kind: mcp-server
+    ordId: customer.build:apiResource:otd-fix-the-risk-f8547.sap-s4-api-outbound-delivery-srv-0002-mcp-server:v1
+
+  - name: sap-s4-ce-freightorder-0001-mcp-server
+    kind: mcp-server
+    ordId: customer.build:apiResource:otd-fix-the-risk-f8547.sap-s4-ce-freightorder-0001-mcp-server:v1

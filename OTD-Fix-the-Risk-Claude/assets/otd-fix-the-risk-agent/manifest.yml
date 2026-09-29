@@ -1,0 +1,50 @@
+# Cloud Foundry manifest — OTD-Fix-the-Risk agent (Claude-backed, Joule-frontable)
+#
+# Push from THIS directory (it holds app/ + requirements.txt):
+#   cf push -f manifest.yml
+#
+# SECRETS ARE DELIBERATELY NOT IN THIS FILE (it is committable). Set them with
+# `cf set-env` after the first push — see DEPLOY.md §8. For the default `basic`
+# identity mode:
+#   ANTHROPIC_API_KEY, OTD_S4_USER, OTD_S4_PASSWORD, OTD_SERVICE_BASE_URLS,
+#   and AGENT_PUBLIC_URL (the assigned route).
+# (For the `destination` / `xsuaa` upgrade paths, set those creds instead — see
+# DEPLOY.md §8 and the commented `services:` block below.)
+#
+# The app reads $PORT (injected by CF) and binds 0.0.0.0 — no port config needed.
+---
+applications:
+  - name: otd-fix-the-risk-agent
+    memory: 1G
+    disk_quota: 2G
+    instances: 1
+    buildpacks:
+      - python_buildpack
+    command: python app/main.py
+    health-check-type: http
+    health-check-http-endpoint: /.well-known/agent-card.json
+    env:
+      # Non-secret defaults only.
+      IBD_TESTING: "0"                      # 0 = live OData bridge; "1" = offline mock
+      OTD_TOKEN_EXCHANGE_MODE: "basic"      # fixed technical user via OTD_S4_USER/PASSWORD
+                                            # (cf set-env). Upgrade paths: "destination" | "xsuaa".
+      OTD_HTTP_TIMEOUT_SECONDS: "30"
+      # LLM routing: "direct" = Anthropic API (ANTHROPIC_API_KEY required, governance deviation).
+      # Set to "aicore" + supply AICORE_* secrets below for the compliant Golden Path.
+      OTD_LLM_ROUTE: "direct"
+    # SECRETS — set after push via `cf set-env`, never in this file.
+    # For OTD_LLM_ROUTE=direct:  ANTHROPIC_API_KEY
+    # For OTD_LLM_ROUTE=aicore:  AICORE_CLIENT_ID, AICORE_CLIENT_SECRET,
+    #                             AICORE_BASE_URL, AICORE_AUTH_URL,
+    #                             AICORE_RESOURCE_GROUP, AICORE_DEPLOYMENT_ID
+    # S/4 identity (basic mode): OTD_S4_USER, OTD_S4_PASSWORD
+    # Always needed:              OTD_SERVICE_BASE_URLS, AGENT_PUBLIC_URL
+    # For the `destination` upgrade path, bind the destination + connectivity + xsuaa
+    # service instances BEFORE first push (cf create-service / cf bind-service), set
+    # OTD_TOKEN_EXCHANGE_MODE=destination, then uncomment — see DEPLOY.md §8. With a
+    # bound 'destination' service, token_exchange reads it from VCAP_SERVICES and only
+    # BTP_DESTINATION_NAME is needed (no pasted token).
+    # services:
+    #   - otd-destination
+    #   - otd-connectivity
+    #   - otd-xsuaa

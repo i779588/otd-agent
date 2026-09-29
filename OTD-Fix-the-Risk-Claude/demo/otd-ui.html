@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OTD Fix the Risk — Advisory Copilot</title>
+  <style>
+    :root {
+      --sap-blue: #0070f2;
+      --sap-blue-dark: #0040b0;
+      --sap-shell: #1b3a6b;
+      --bg: #f5f6fa;
+      --white: #ffffff;
+      --border: #d9dde7;
+      --ink: #1d2d3e;
+      --muted: #556b82;
+      --risk-high: #ff5c72;
+      --risk-high-bg: #fff0f2;
+      --risk-med: #e97f12;
+      --risk-med-bg: #fff5e6;
+      --risk-low: #19a974;
+      --risk-low-bg: #edfbf4;
+      --score-9: #c0392b; --score-7: #e97f12; --score-5: #f1c40f; --score-3: #19a974;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.5;
+    }
+
+    /* ── Shell bar ── */
+    .shell {
+      background: var(--sap-shell); color: white;
+      display: flex; align-items: center; gap: 16px;
+      padding: 0 32px; height: 48px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .shell-logo { font-size: 18px; font-weight: 700; letter-spacing: -.5px; }
+    .shell-title { font-size: 14px; opacity: .85; }
+
+    /* ── Page layout ── */
+    .page { max-width: 1280px; margin: 0 auto; padding: 20px 32px 48px; }
+
+    /* ── Section title ── */
+    .section-title {
+      font-size: 11px; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+    }
+
+    /* ── KPI strip ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .kpi {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px;
+    }
+    .kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+    .kpi-value { font-size: 26px; font-weight: 700; line-height: 1; }
+    .kpi-sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+    .kpi.red .kpi-value { color: var(--risk-high); }
+    .kpi.orange .kpi-value { color: var(--risk-med); }
+    .kpi.green .kpi-value { color: var(--risk-low); }
+    .kpi.blue .kpi-value { color: var(--sap-blue); }
+
+    /* ── Two-column layout ── */
+    .two-col { display: grid; grid-template-columns: 1fr 400px; gap: 20px; align-items: start; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    }
+    .card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+
+    /* ── Risk table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600;
+         letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+         border-bottom: 2px solid var(--border); }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f0f4ff; cursor: pointer; }
+    tr.selected td { background: #e8f0fe; }
+
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      border-radius: 999px; padding: 3px 9px; font-size: 11.5px; font-weight: 600;
+    }
+    .risk-badge.high { background: var(--risk-high-bg); color: var(--risk-high); }
+    .risk-badge.med  { background: var(--risk-med-bg);  color: var(--risk-med);  }
+    .risk-badge.ok   { background: var(--risk-low-bg);  color: var(--risk-low);  }
+    .risk-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    .score-pill {
+      display: inline-block; border-radius: 6px; padding: 2px 8px;
+      font-weight: 700; font-size: 12.5px; color: white;
+    }
+    .score-9,.score-8 { background: var(--score-9); }
+    .score-7,.score-6 { background: var(--score-7); }
+    .score-5,.score-4 { background: var(--score-5); color: #555; }
+    .score-3,.score-2,.score-1 { background: var(--score-3); }
+
+    .days-chip {
+      font-size: 11.5px; border-radius: 6px; padding: 2px 7px;
+      background: var(--risk-high-bg); color: var(--risk-high); font-weight: 600;
+    }
+    .days-chip.ok { background: var(--risk-low-bg); color: var(--risk-low); }
+    .days-chip.warn { background: var(--risk-med-bg); color: var(--risk-med); }
+
+    .cause-tag {
+      font-size: 11px; border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 7px; color: var(--muted); white-space: nowrap;
+    }
+
+    /* ── Skills legend ── */
+    .skills-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .skill-item {
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start;
+    }
+    .skill-icon {
+      width: 32px; height: 32px; border-radius: 8px; background: #e8f0fe;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .skill-name { font-weight: 600; font-size: 12.5px; }
+    .skill-desc { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+    /* ── Data sources ── */
+    .sources-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .src-chip {
+      font-size: 11.5px; border: 1px solid var(--border); border-radius: 8px;
+      padding: 5px 10px; background: #f8f9fb;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .src-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sap-blue); flex-shrink: 0; }
+
+    /* ── Query panel ── */
+    .query-panel { position: sticky; top: 20px; display: flex; flex-direction: column; gap: 0; }
+    .prompts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .chip {
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: 5px 11px; font-size: 11.5px; cursor: pointer; background: white;
+      color: var(--ink); transition: border-color .15s;
+    }
+    .chip:hover { border-color: var(--sap-blue); color: var(--sap-blue); }
+    textarea {
+      width: 100%; min-height: 90px; resize: vertical;
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; font-size: 13.5px; font-family: inherit;
+      color: var(--ink); outline: none;
+    }
+    textarea:focus { border-color: var(--sap-blue); box-shadow: 0 0 0 3px rgba(0,112,242,.1); }
+    .ask-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+    .btn-ask {
+      background: var(--sap-blue); color: white; border: none;
+      border-radius: 8px; padding: 10px 20px; font-size: 14px;
+      font-weight: 600; cursor: pointer; flex-shrink: 0;
+    }
+    .btn-ask:hover { background: var(--sap-blue-dark); }
+    .btn-ask:disabled { opacity: .5; cursor: default; }
+    .ask-hint { font-size: 11.5px; color: var(--muted); }
+
+    /* ── Response ── */
+    .response-box {
+      background: #f8f9fb; border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px; font-size: 13px;
+      white-space: pre-wrap; word-wrap: break-word; min-height: 80px;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; line-height: 1.6;
+      max-height: 420px; overflow-y: auto;
+    }
+    .response-box.empty { color: var(--muted); font-family: inherit; }
+    .thinking { color: var(--sap-blue); font-size: 12px; margin-top: 6px; }
+
+    /* ── Dossier overlay ── */
+    .dossier-panel {
+      position: fixed; right: 0; top: 48px; bottom: 0; width: 420px;
+      background: white; border-left: 1px solid var(--border);
+      box-shadow: -4px 0 20px rgba(0,0,0,.08);
+      display: none; flex-direction: column; z-index: 100;
+    }
+    .dossier-panel.open { display: flex; }
+    .dossier-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .dossier-header h3 { font-size: 14px; font-weight: 600; }
+    .dossier-close {
+      background: none; border: none; font-size: 18px;
+      cursor: pointer; color: var(--muted); line-height: 1;
+    }
+    .dossier-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .dossier-row { margin-bottom: 14px; }
+    .dossier-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 3px; }
+    .dossier-val { font-size: 13.5px; font-weight: 500; }
+    .dossier-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .dossier-actions { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .dossier-actions li {
+      background: #f0f4ff; border-radius: 8px; padding: 10px 12px;
+      font-size: 12.5px; display: flex; gap: 8px;
+    }
+    .action-num {
+      width: 20px; height: 20px; border-radius: 50%; background: var(--sap-blue);
+      color: white; font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .hitl-box {
+      background: #fff8e1; border: 1px solid #f1c40f; border-radius: 8px;
+      padding: 10px 12px; font-size: 12px; color: #7a6000; margin-top: 16px;
+    }
+    .hitl-box strong { display: block; margin-bottom: 3px; }
+
+    /* ── Disclaimer ── */
+    .disclaimer {
+      font-size: 11.5px; color: var(--muted);
+      border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;
+    }
+
+    /* ── Flow diagram ── */
+    .flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin-top: 8px; }
+    .flow-step {
+      background: #f0f4ff; border: 1px solid #c5d5f5; border-radius: 8px;
+      padding: 8px 12px; font-size: 12px; font-weight: 500; text-align: center;
+    }
+    .flow-arrow { font-size: 16px; color: var(--muted); padding: 0 8px; }
+
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .skills-row { grid-template-columns: 1fr; }
+      .dossier-panel { width: 100%; }
+    }
+
+    .collapse-toggle {
+      font-size: 11px; font-weight: 600; color: var(--sap-blue);
+      cursor: pointer; letter-spacing: 0; text-transform: none;
+      user-select: none;
+    }
+    .collapse-toggle:hover { text-decoration: underline; }
+
+    /* ── Collapsible card title row ── */
+    .card-title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0; cursor: pointer; user-select: none;
+    }
+    .card-title-row .card-title { margin-bottom: 0; }
+    .card-chevron {
+      font-size: 13px; color: var(--muted); transition: transform .2s;
+    }
+    .card-title-row.open .card-chevron { transform: rotate(180deg); }
+    .card-collapsible-body { margin-top: 16px; }
+
+    /* ── Response card header ── */
+    .response-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .response-card-header .card-title { margin-bottom: 0; }
+    .btn-maximize {
+      background: none; border: 1px solid var(--border); border-radius: 7px;
+      padding: 4px 9px; font-size: 13px; cursor: pointer; color: var(--muted);
+      display: flex; align-items: center; gap: 5px; transition: border-color .15s, color .15s;
+      line-height: 1;
+    }
+    .btn-maximize:hover { border-color: var(--sap-blue); color: var(--sap-blue); }
+
+    /* ── Fullscreen modal ── */
+    .response-modal {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(15,28,55,.55); backdrop-filter: blur(3px);
+      align-items: center; justify-content: center;
+    }
+    .response-modal.open { display: flex; }
+    .modal-box {
+      background: var(--white); border-radius: 16px;
+      width: min(860px, 92vw); max-height: 88vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,.22);
+      animation: modalIn .18s ease;
+    }
+    @keyframes modalIn { from { opacity:0; transform:scale(.97) } to { opacity:1; transform:scale(1) } }
+    .modal-header {
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 600; }
+    .modal-close {
+      background: none; border: none; font-size: 20px;
+      cursor: pointer; color: var(--muted); line-height: 1; padding: 2px 6px;
+      border-radius: 6px; transition: background .15s;
+    }
+    .modal-close:hover { background: #f0f2f7; }
+    .modal-body { padding: 22px 24px; overflow-y: auto; flex: 1; }
+    .modal-response {
+      white-space: pre-wrap; word-wrap: break-word;
+      font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+      font-size: 14px; line-height: 1.75; color: var(--ink);
+      background: #f8f9fb; border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px; min-height: 120px;
+    }
+    .modal-response.empty { color: var(--muted); font-family: inherit; font-size: 14px; }
+    .modal-footer {
+      padding: 12px 22px; border-top: 1px solid var(--border);
+      font-size: 11.5px; color: var(--muted); flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Shell bar -->
+<div class="shell">
+  <div class="shell-logo">SAP</div>
+  <div class="shell-title">OTD Fix the Risk</div>
+</div>
+
+<div class="page">
+
+  <!-- KPI strip -->
+  <div class="kpi-row">
+    <div class="kpi red">
+      <div class="kpi-label">At-Risk Orders</div>
+      <div class="kpi-value">4</div>
+      <div class="kpi-sub">of 5 open orders this week</div>
+    </div>
+    <div class="kpi orange">
+      <div class="kpi-label">Delivery in &le;3 Days</div>
+      <div class="kpi-value">2</div>
+      <div class="kpi-sub">critical SLA window</div>
+    </div>
+    <div class="kpi blue">
+      <div class="kpi-label">Revenue at Risk</div>
+      <div class="kpi-value">$1.2M</div>
+      <div class="kpi-sub">across 4 orders</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">On-Track Orders</div>
+      <div class="kpi-value">1</div>
+      <div class="kpi-sub">4500005 — healthy control</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Left column -->
+    <div>
+
+      <!-- Risk table -->
+      <div class="card">
+        <div class="card-title">At-Risk Sales Orders — Priority Ranked</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Conf. Delivery</th>
+              <th>Days Left</th>
+              <th>Root Cause</th>
+              <th>Priority</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr onclick="showDossier('4500001')" title="Click for advisory dossier">
+              <td><strong>4500001</strong></td>
+              <td>Cust-001 (Tier 1)</td>
+              <td>2026-10-01</td>
+              <td><span class="days-chip">2 days</span></td>
+              <td><span class="cause-tag">Material Shortage</span></td>
+              <td><span class="score-pill score-9">9/9</span></td>
+              <td><span class="risk-badge high"><span class="risk-dot"></span>Critical</span></td>
+            </tr>
+            <tr onclick="showDossier('4500002')" title="Click for advisory dossier">
+              <td><strong>4500002</strong></td>
+              <td>Cust-002 (Tier 1)</td>
+              <td>2026-10-02</td>
+              <td><span class="days-chip">3 days</span></td>
+              <td><span class="cause-tag">Production Constraint</span></td>
+              <td><span class="score-pill score-8">8/9</span></td>
+              <td><span class="risk-badge high"><span class="risk-dot"></span>Critical</span></td>
+            </tr>
+            <tr onclick="showDossier('4500003')" title="Click for advisory dossier">
+              <td><strong>4500003</strong></td>
+              <td>Cust-003 (Tier 2)</td>
+              <td>2026-10-04</td>
+              <td><span class="days-chip warn">5 days</span></td>
+              <td><span class="cause-tag">Warehouse Bottleneck</span></td>
+              <td><span class="score-pill score-6">6/9</span></td>
+              <td><span class="risk-badge med"><span class="risk-dot"></span>High</span></td>
+            </tr>
+            <tr onclick="showDossier('4500004')" title="Click for advisory dossier">
+              <td><strong>4500004</strong></td>
+              <td>Cust-004 (Tier 2)</td>
+              <td>2026-10-06</td>
+              <td><span class="days-chip warn">7 days</span></td>
+              <td><span class="cause-tag">Carrier Delay</span></td>
+              <td><span class="score-pill score-5">5/9</span></td>
+              <td><span class="risk-badge med"><span class="risk-dot"></span>High</span></td>
+            </tr>
+            <tr>
+              <td><strong>4500005</strong></td>
+              <td>Cust-005 (Tier 3)</td>
+              <td>2026-10-15</td>
+              <td><span class="days-chip ok">16 days</span></td>
+              <td><span class="cause-tag" style="color:#19a974;border-color:#19a974">On Track</span></td>
+              <td><span class="score-pill score-2">2/9</span></td>
+              <td><span class="risk-badge ok"><span class="risk-dot"></span>On Track</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:11.5px;color:var(--muted);margin-top:10px">
+          Click any row to view the full advisory dossier for that order.
+        </p>
+      </div>
+
+      <!-- How it works (collapsed by default) -->
+      <div class="card">
+        <div class="card-title-row" id="agentWorksToggle" onclick="toggleAgentWorks()">
+          <div class="card-title">How the Agent Works</div>
+          <span class="card-chevron" id="agentWorksChevron">▼</span>
+        </div>
+        <div class="card-collapsible-body" id="agentWorksBody" style="display:none">
+
+        <div class="section-title">Agent Skills</div>
+        <div class="skills-row">
+          <div class="skill-item">
+            <div class="skill-icon">🔍</div>
+            <div>
+              <div class="skill-name">OTD Risk Detection</div>
+              <div class="skill-desc">Scans open sales orders with delivery dates within the next 7 days. Cross-references inventory, production, delivery and freight signals to flag at-risk orders.</div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon">🔬</div>
+            <div>
+              <div class="skill-name">Root Cause Diagnosis</div>
+              <div class="skill-desc">Classifies the primary delay cause: material shortage, production constraint, warehouse bottleneck, or carrier delay. Cites the exact SAP signals supporting it.</div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon">📊</div>
+            <div>
+              <div class="skill-name">Priority Scoring</div>
+              <div class="skill-desc">Ranks orders by a weighted score combining customer tier (1–3), SLA urgency (days remaining), and revenue. Score 1–9 so planners focus on the highest-impact orders first.</div>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-icon">📋</div>
+            <div>
+              <div class="skill-name">Advisory Dossier</div>
+              <div class="skill-desc">Generates a structured per-order action plan: root cause, confidence rating, 3 concrete recommended actions referencing the correct SAP Fiori app, and a revised promise date estimate.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px">Data Sources (read-only OData) &nbsp;
+          <span class="collapse-toggle" onclick="toggleSection('dataSources',this)">▾ hide</span>
+        </div>
+        <div id="dataSources">
+          <div class="sources-row">
+            <div class="src-chip"><span class="src-dot"></span>CE_SALESORDER_0001 &mdash; Sales Orders &amp; Items</div>
+            <div class="src-chip"><span class="src-dot"></span>WAREHOUSEAVAILABLESTOCK_0001 &mdash; Stock ATP</div>
+            <div class="src-chip"><span class="src-dot"></span>API_PRODUCTION_ORDER_2_SRV &mdash; Production Orders</div>
+            <div class="src-chip"><span class="src-dot"></span>API_OUTBOUND_DELIVERY_SRV_0002 &mdash; Picking &amp; GI</div>
+            <div class="src-chip"><span class="src-dot"></span>CE_FREIGHTORDER_0001 &mdash; Freight &amp; Carrier ETA</div>
+          </div>
+        </div>
+
+        <div class="section-title" style="margin-top:16px">Request Flow &nbsp;
+          <span class="collapse-toggle" onclick="toggleSection('requestFlow',this)">▾ hide</span>
+        </div>
+        <div id="requestFlow">
+          <div class="flow">
+            <div class="flow-step">Planner Question</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">A2A Agent (Claude)</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">OData Bridge (GET only)</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">S/4HANA APIs</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Advisory Dossier</div>
+          </div>
+        </div>
+        </div><!-- /agentWorksBody -->
+      </div><!-- /how-it-works card -->
+
+    </div>
+
+    <!-- Right column: query panel -->
+    <div class="query-panel">
+      <div class="card">
+        <div class="card-title">Ask the OTD Copilot</div>
+
+        <div class="section-title">Sample questions</div>
+        <div class="prompts">
+          <button class="chip" onclick="setQ(this)">Which orders are at risk this week?</button>
+          <button class="chip" onclick="setQ(this)">Give me an executive OTD risk summary</button>
+          <button class="chip" onclick="setQ(this)">Diagnose root cause for order 4500001</button>
+          <button class="chip" onclick="setQ(this)">Rank all at-risk orders by priority score</button>
+          <button class="chip" onclick="setQ(this)">What should I do about the carrier delay on 4500004?</button>
+        </div>
+
+        <textarea id="query" placeholder="Ask anything about your OTD risk situation…
+e.g. Which sales orders are at risk of missing their delivery date today?"></textarea>
+
+        <div class="ask-row">
+          <button class="btn-ask" id="askBtn" onclick="ask()">Ask Agent</button>
+          <span class="ask-hint" id="askHint">Ctrl+Enter to submit</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="response-card-header">
+          <div class="card-title">Advisory Response</div>
+          <button class="btn-maximize" onclick="openResponseModal()" title="Expand to full screen">
+            ⤢ Expand
+          </button>
+        </div>
+        <div class="response-box empty" id="responseBox">Ask a question to see the agent's advisory output.</div>
+        <div class="thinking" id="thinkingMsg" style="display:none">Thinking… running OTD skills + Claude reasoning</div>
+        <p class="disclaimer" id="dossierDisclaimer">
+          Advisory only. Recommendations require manual review and execution by an authorized planner.
+          This agent never writes to SAP.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dossier slide-over -->
+<div class="dossier-panel" id="dossierPanel">
+  <div class="dossier-header">
+    <h3 id="dossierTitle">Advisory Dossier</h3>
+    <button class="dossier-close" onclick="closeDossier()">✕</button>
+  </div>
+  <div class="dossier-body" id="dossierBody"></div>
+</div>
+
+<!-- Advisory Response fullscreen modal -->
+<div class="response-modal" id="responseModal" onclick="closeResponseModalOnBg(event)">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Advisory Response</h3>
+      <button class="modal-close" onclick="closeResponseModal()" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-response empty" id="modalResponseBox">No response yet — ask a question first.</div>
+    </div>
+    <div class="modal-footer">
+      Advisory only. Recommendations require manual review and execution by an authorized planner.
+      This agent never writes to SAP.
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Sample dossiers (mirrors real agent output format) ──────────────────
+  const DOSSIERS = {
+    "4500001": {
+      order: "4500001", customer: "Cust-001", group: "01 (Tier 1)",
+      requested: "2026-10-01", confirmed: "2026-10-01", daysLeft: 2,
+      value: "$450,000", score: "9 / 9",
+      cause: "Material Shortage", confidence: "High",
+      evidence: [
+        "Available stock for Material STEEL-500: 20 units — order requires 500",
+        "Production order PR-2001 not released; finish date 2026-10-05 (4 days AFTER delivery)",
+        "Outbound delivery 80001234 — picking status: not started"
+      ],
+      missing: ["Freight order not yet created"],
+      actions: [
+        "Use 'Manage Material Documents' to check open purchase orders for STEEL-500 and expedite the fastest supplier.",
+        "Use 'Monitor Production Orders' to release PR-2001 on priority and negotiate an earlier finish date.",
+        "Notify the customer via 'Manage Sales Orders' of a revised promise date of 2026-10-07 (earliest feasible)."
+      ],
+      revised: "2026-10-07"
+    },
+    "4500002": {
+      order: "4500002", customer: "Cust-002", group: "01 (Tier 1)",
+      requested: "2026-10-02", confirmed: "2026-10-02", daysLeft: 3,
+      value: "$380,000", score: "8 / 9",
+      cause: "Production Constraint", confidence: "High",
+      evidence: [
+        "Work center WC-ASSEMBLY overloaded: 142% utilization for next 5 days",
+        "Production order PR-2002 scheduled end: 2026-10-04 (2 days after delivery date)",
+        "Stock available (800 units) — not the bottleneck"
+      ],
+      missing: [],
+      actions: [
+        "Use 'Capacity Planning' to reroute operations to alternate work center WC-ASSEMBLY-B (23% utilization).",
+        "Use 'Monitor Production Orders' to split PR-2002: fast-track the 150-unit partial quantity needed for this order.",
+        "Use 'Manage Sales Orders' to issue a revised promise date of 2026-10-05 to the customer."
+      ],
+      revised: "2026-10-05"
+    },
+    "4500003": {
+      order: "4500003", customer: "Cust-003", group: "02 (Tier 2)",
+      requested: "2026-10-04", confirmed: "2026-10-04", daysLeft: 5,
+      value: "$210,000", score: "6 / 9",
+      cause: "Warehouse Bottleneck", confidence: "High",
+      evidence: [
+        "Outbound delivery 80001235: goods issue status OPEN, picking status NOT STARTED",
+        "Warehouse utilization at 94% — picking queue backlogged",
+        "Production complete; stock available and transferred to warehouse"
+      ],
+      missing: ["Freight order exists but ETA not yet confirmed by carrier"],
+      actions: [
+        "Use 'Monitor Outbound Deliveries' to escalate delivery 80001235 to pick-priority status.",
+        "Contact warehouse supervisor to assign additional pickers for today's shift.",
+        "Once picked, use 'Track Freight Orders' to book expedited carrier slot to meet 2026-10-04."
+      ],
+      revised: "2026-10-04 (achievable if picking starts today)"
+    },
+    "4500004": {
+      order: "4500004", customer: "Cust-004", group: "02 (Tier 2)",
+      requested: "2026-10-06", confirmed: "2026-10-06", daysLeft: 7,
+      value: "$175,000", score: "5 / 9",
+      cause: "Carrier Delay", confidence: "High",
+      evidence: [
+        "Freight order FO-9001: execution status DELAYED — carrier ETA 2026-10-11 (5 days late)",
+        "Goods picked and issued — warehouse side is complete",
+        "Carrier TransCo reported port congestion at origin hub"
+      ],
+      missing: [],
+      actions: [
+        "Use 'Track Freight Orders' to contact TransCo and request rerouting via alternate hub.",
+        "Get a quote for expedited air freight to recover the 5-day delay (evaluate vs. $175k revenue).",
+        "Use 'Manage Sales Orders' to inform Cust-004 of the delay and offer a revised date of 2026-10-11."
+      ],
+      revised: "2026-10-09 (air freight) or 2026-10-11 (standard reroute)"
+    }
+  };
+
+  // ── Mock agent responses ────────────────────────────────────────────────
+  const RESPONSES = {
+    "which orders are at risk this week":
+`OTD RISK SUMMARY — Week of 2026-09-29
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+4 of 5 open orders are at risk of missing confirmed delivery dates.
+
+CRITICAL (≤3 days):
+  • 4500001 — Material Shortage    Score 9/9  ETA miss: +4 days
+  • 4500002 — Production Overload  Score 8/9  ETA miss: +2 days
+
+HIGH (4–7 days):
+  • 4500003 — Warehouse Backlog    Score 6/9  ETA miss: +0 days (recoverable today)
+  • 4500004 — Carrier Delay        Score 5/9  ETA miss: +5 days
+
+ON TRACK:
+  • 4500005 — No issues detected   Score 2/9
+
+Total revenue at risk: $1,215,000
+Recommended first action: prioritize 4500001 — highest score, shortest window.
+
+⚠️  Advisory only. No changes have been made to any SAP system.`,
+
+    "give me an executive otd risk summary":
+`EXECUTIVE OTD RISK BRIEF — 2026-09-29
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+HEADLINE: 80% of this week's open orders are at risk.
+Revenue exposure: $1.22M across 4 orders.
+Two orders (4500001, 4500002) require action TODAY to avoid breach.
+
+ROOT CAUSE BREAKDOWN:
+  Material/Supply  ████░░░░  1 order  $450K
+  Production       ████░░░░  1 order  $380K
+  Warehouse        ████░░░░  1 order  $210K
+  Carrier/Transit  ████░░░░  1 order  $175K
+
+RECOMMENDED EXECUTIVE ACTIONS:
+1. Authorize overtime for WC-ASSEMBLY to relieve the capacity constraint on 4500002.
+2. Escalate STEEL-500 purchase order to strategic supplier for 4500001.
+3. Review carrier SLA compliance — TransCo has now delayed 3 shipments this month.
+
+⚠️  Advisory only. This summary is generated from read-only SAP data.
+    All actions require manual execution by authorized planners.`,
+
+    "diagnose root cause for order 4500001":
+`OTD ADVISORY DOSSIER — Order 4500001
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Order ID:           4500001
+Customer:           Cust-001  (Tier 1)
+Confirmed Delivery: 2026-10-01  (2 days remaining)
+Net Order Value:    $450,000
+Priority Score:     9 / 9  ← HIGHEST
+
+ROOT CAUSE:  Material Shortage  (Confidence: HIGH)
+
+Supporting Evidence:
+  • Available stock STEEL-500: 20 units / 500 required (4% fill rate)
+  • Production order PR-2001 not released; scheduled end 2026-10-05
+    → 4 days AFTER the confirmed delivery date
+  • Outbound delivery 80001234: picking NOT STARTED
+
+Missing Signals:
+  • Freight order not yet created (no carrier data)
+
+RECOMMENDED ACTIONS:
+1. Check open POs for STEEL-500 in 'Manage Material Documents' and
+   expedite the fastest supplier — ask for partial delivery of 500 units.
+2. Release PR-2001 now via 'Monitor Production Orders' and negotiate
+   an earlier finish date (target: 2026-10-03).
+3. Communicate a revised promise date of 2026-10-07 to Cust-001 via
+   'Manage Sales Orders' before the customer escalates.
+
+Suggested Revised Promise Date: 2026-10-07
+
+⚠️  HUMAN-IN-THE-LOOP REQUIREMENT
+All recommendations require manual review and execution by an
+authorized planner. No changes have been made to any SAP system.`,
+
+    "rank all at-risk orders by priority score":
+`PRIORITY RANKING — At-Risk Orders
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Rank  Order    Score  Customer Tier  SLA Score  Revenue Score
+────  ───────  ─────  ─────────────  ─────────  ─────────────
+  1   4500001    9    Tier 1 (+3)    ≤3 days (+3) >$100K (+3)
+  2   4500002    8    Tier 1 (+3)    ≤3 days (+3) >$100K (+2)
+  3   4500003    6    Tier 2 (+2)    4–7 days (+2) >$100K (+2)
+  4   4500004    5    Tier 2 (+2)    4–7 days (+2) 10K–100K (+1)*
+  5   4500005    2    Tier 3 (+1)    >7 days (+1) <$10K (+0)
+
+*4500004 scored Revenue 1 because net amount was partially masked in fixture.
+
+ACTION ORDER: Work 4500001 first — it has the highest score AND the
+shortest remaining window. 4500002 is a close second.
+
+⚠️  Advisory only. Rankings are based on read-only SAP data.`,
+
+    "what should i do about the carrier delay on 4500004":
+`ADVISORY — Carrier Delay, Order 4500004
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Situation:
+  Freight order FO-9001 (carrier: TransCo) has an execution status
+  of DELAYED. Current carrier ETA: 2026-10-11 — 5 days after the
+  confirmed delivery date of 2026-10-06.
+
+  Warehouse side is COMPLETE: goods picked and issued. The delay is
+  entirely on the carrier/transit leg.
+
+Options (fastest to slowest recovery):
+
+  Option A — Air freight rebooking (~2 days transit)
+    Estimated delivery: 2026-10-03  (3 days early)
+    Action: Contact logistics team to book air freight slot.
+    Use 'Track Freight Orders' to update FO-9001 mode of transport.
+
+  Option B — Reroute via alternate hub (~4 days transit)
+    Estimated delivery: 2026-10-09  (3 days late)
+    Action: Call TransCo ops line and request reroute away from
+    congested port. Reference FO-9001.
+
+  Option C — Accept delay, manage customer
+    Delivery: 2026-10-11  (5 days late)
+    Action: Use 'Manage Sales Orders' to issue a revised promise
+    date and proactively communicate to Cust-004.
+
+Recommendation: Evaluate Option A vs. B based on freight cost
+vs. $175K revenue and customer relationship risk.
+
+⚠️  Advisory only. No changes have been made to any SAP system.`
+  };
+
+  function normalize(s) {
+    return s.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+  }
+
+  function findResponse(query) {
+    const q = normalize(query);
+    for (const [key, val] of Object.entries(RESPONSES)) {
+      if (q.includes(normalize(key)) || normalize(key).includes(q.substring(0, 20))) {
+        return val;
+      }
+    }
+    // fuzzy fallback
+    if (q.includes("4500001")) return RESPONSES["diagnose root cause for order 4500001"];
+    if (q.includes("4500004") || q.includes("carrier")) return RESPONSES["what should i do about the carrier delay on 4500004"];
+    if (q.includes("rank") || q.includes("priority") || q.includes("score")) return RESPONSES["rank all at-risk orders by priority score"];
+    if (q.includes("execut") || q.includes("summary") || q.includes("brief")) return RESPONSES["give me an executive otd risk summary"];
+    return RESPONSES["which orders are at risk this week"];
+  }
+
+  function setQ(btn) {
+    document.getElementById("query").value = btn.textContent.trim();
+    document.getElementById("query").focus();
+  }
+
+  async function ask() {
+    const q = document.getElementById("query").value.trim();
+    if (!q) { document.getElementById("query").focus(); return; }
+
+    const btn = document.getElementById("askBtn");
+    const box = document.getElementById("responseBox");
+    const thinking = document.getElementById("thinkingMsg");
+
+    btn.disabled = true;
+    box.className = "response-box empty";
+    box.textContent = "";
+    thinking.style.display = "block";
+
+    await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+
+    thinking.style.display = "none";
+    box.className = "response-box";
+    box.textContent = findResponse(q);
+    btn.disabled = false;
+
+    // keep modal in sync if open
+    const modal = document.getElementById("responseModal");
+    if (modal && modal.classList.contains("open")) openResponseModal();
+  }
+
+  document.getElementById("query").addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") ask();
+  });
+
+  // ── Dossier slide-over ──────────────────────────────────────────────────
+  function showDossier(id) {
+    const d = DOSSIERS[id];
+    if (!d) return;
+
+    document.getElementById("dossierTitle").textContent = `Advisory Dossier — Order ${d.order}`;
+
+    const body = document.getElementById("dossierBody");
+    body.innerHTML = `
+      <div class="dossier-row"><div class="dossier-lbl">Customer</div><div class="dossier-val">${d.customer} &mdash; Group ${d.group}</div></div>
+      <div class="dossier-row"><div class="dossier-lbl">Confirmed Delivery</div><div class="dossier-val">${d.confirmed} &mdash; <strong>${d.daysLeft} days remaining</strong></div></div>
+      <div class="dossier-row"><div class="dossier-lbl">Net Order Value</div><div class="dossier-val">${d.value}</div></div>
+      <div class="dossier-row"><div class="dossier-lbl">Priority Score</div><div class="dossier-val"><span class="score-pill score-${d.score.split('/')[0].trim()}">${d.score}</span></div></div>
+      <hr class="dossier-divider" />
+      <div class="dossier-row">
+        <div class="dossier-lbl">Root Cause</div>
+        <div class="dossier-val">${d.cause} &mdash; Confidence: <strong>${d.confidence}</strong></div>
+      </div>
+      <div class="dossier-row">
+        <div class="dossier-lbl">Supporting Evidence</div>
+        <ul style="margin:6px 0 0 16px;font-size:12.5px;line-height:1.7;color:var(--ink)">
+          ${d.evidence.map(e => `<li>${e}</li>`).join("")}
+        </ul>
+      </div>
+      ${d.missing.length ? `<div class="dossier-row"><div class="dossier-lbl">Missing Signals</div><ul style="margin:6px 0 0 16px;font-size:12.5px;color:var(--muted)">${d.missing.map(m => `<li>${m}</li>`).join("")}</ul></div>` : ""}
+      <hr class="dossier-divider" />
+      <div class="dossier-lbl" style="margin-bottom:8px">Recommended Actions</div>
+      <ul class="dossier-actions">
+        ${d.actions.map((a, i) => `<li><span class="action-num">${i+1}</span><span>${a}</span></li>`).join("")}
+      </ul>
+      <div class="dossier-row" style="margin-top:14px">
+        <div class="dossier-lbl">Suggested Revised Promise Date</div>
+        <div class="dossier-val">${d.revised}</div>
+      </div>
+      <div class="hitl-box">
+        <strong>⚠️ Human-in-the-Loop Requirement</strong>
+        All recommendations require manual review and execution by an authorized planner.
+        This dossier is advisory only. No changes have been made to any SAP system.
+      </div>`;
+
+    document.getElementById("dossierPanel").classList.add("open");
+  }
+
+  function closeDossier() {
+    document.getElementById("dossierPanel").classList.remove("open");
+  }
+
+  function toggleSection(id, toggle) {
+    const el = document.getElementById(id);
+    const hidden = el.style.display === "none";
+    el.style.display = hidden ? "" : "none";
+    toggle.textContent = hidden ? "▾ hide" : "▸ show";
+  }
+
+  function toggleAgentWorks() {
+    const body = document.getElementById("agentWorksBody");
+    const chevron = document.getElementById("agentWorksChevron");
+    const toggle = document.getElementById("agentWorksToggle");
+    const hidden = body.style.display === "none";
+    body.style.display = hidden ? "" : "none";
+    chevron.textContent = hidden ? "▲" : "▼";
+    toggle.classList.toggle("open", hidden);
+  }
+
+  function openResponseModal() {
+    const src = document.getElementById("responseBox");
+    const dest = document.getElementById("modalResponseBox");
+    const isEmpty = src.classList.contains("empty");
+    dest.textContent = isEmpty ? "No response yet — ask a question first." : src.textContent;
+    dest.className = "modal-response" + (isEmpty ? " empty" : "");
+    document.getElementById("responseModal").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeResponseModal() {
+    document.getElementById("responseModal").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  function closeResponseModalOnBg(e) {
+    if (e.target === document.getElementById("responseModal")) closeResponseModal();
+  }
+</script>
+</body>
+</html>

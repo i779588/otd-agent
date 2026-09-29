@@ -1,0 +1,30 @@
+litellm==1.91.1
+langchain>=1.4.0,<2.0.0
+langchain-core>=1.6.1,<2.0.0
+langchain-litellm==0.7.1
+cryptography==50.0.0
+langchain-mcp-adapters==0.2.2
+langgraph>=1.2.11,<1.3.0
+a2a-sdk[all]==0.3.22
+fastapi==0.141.1
+uvicorn==0.40.0
+httpx==0.28.1
+python-dotenv==1.2.2
+click==8.3.3
+mcp==1.29.0
+opentelemetry-instrumentation-starlette==0.65b0
+google-re2==1.1.20251105
+PyYAML==6.0.3
+pydantic==2.12.3
+# SAP Gen AI Hub SDK — enables OTD_LLM_ROUTE=aicore (compliant Golden Path).
+# Pulls in ai-core-sdk and ai-api-client-sdk automatically.
+# botocore + langchain-aws are required by gen_ai_hub's Bedrock/Amazon backend
+# (SAP serves Claude via AWS Bedrock under the hood).
+sap-ai-sdk-gen>=7.4.1
+botocore>=1.38.0
+aiobotocore>=2.13.0
+langchain-aws~=1.7.0
+# gen_ai_hub.proxy.langchain.init_models eagerly imports the amazon, google, and
+# openai providers, so all three langchain backends must be present even though
+# this agent only uses amazon. langchain-openai arrives transitively; pin google.
+langchain-google-genai~=4.3.6
