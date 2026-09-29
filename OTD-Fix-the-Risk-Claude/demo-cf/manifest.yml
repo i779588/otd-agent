@@ -1,0 +1,11 @@
+---
+applications:
+  - name: otd-fix-the-risk-ui
+    memory: 64M
+    disk_quota: 128M
+    instances: 1
+    buildpacks:
+      - staticfile_buildpack
+    # Static demo chat UI for the OTD-Fix-the-Risk agent. Talks to the A2A
+    # endpoint (AGENT_URL in index.html) cross-origin; the agent already sends
+    # CORS allow-origin: *. Demo-only bearer token is embedded in index.html.

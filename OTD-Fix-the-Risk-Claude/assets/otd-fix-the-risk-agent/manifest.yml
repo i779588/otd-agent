@@ -25,13 +25,16 @@ applications:
     health-check-http-endpoint: /.well-known/agent-card.json
     env:
       # Non-secret defaults only.
-      IBD_TESTING: "0"                      # 0 = live OData bridge; "1" = offline mock
+      IBD_TESTING: "1"                      # "1" = offline mock (demo default; live OData
+                                            # bridge currently discovers 0 tools). Set "0"
+                                            # once live destination/identity is wired.
       OTD_TOKEN_EXCHANGE_MODE: "basic"      # fixed technical user via OTD_S4_USER/PASSWORD
                                             # (cf set-env). Upgrade paths: "destination" | "xsuaa".
       OTD_HTTP_TIMEOUT_SECONDS: "30"
-      # LLM routing: "direct" = Anthropic API (ANTHROPIC_API_KEY required, governance deviation).
-      # Set to "aicore" + supply AICORE_* secrets below for the compliant Golden Path.
-      OTD_LLM_ROUTE: "direct"
+      # LLM routing: "aicore" = SAP Gen AI Hub (compliant Golden Path; AICORE_* secrets
+      # via cf set-env, which persist across push). "direct" = Anthropic API
+      # (ANTHROPIC_API_KEY required, governance deviation).
+      OTD_LLM_ROUTE: "aicore"
     # SECRETS — set after push via `cf set-env`, never in this file.
     # For OTD_LLM_ROUTE=direct:  ANTHROPIC_API_KEY
     # For OTD_LLM_ROUTE=aicore:  AICORE_CLIENT_ID, AICORE_CLIENT_SECRET,
