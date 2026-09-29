@@ -1,0 +1,16 @@
+{
+  "xsappname": "otd-fix-the-risk-agent",
+  "tenant-mode": "dedicated",
+  "description": "Security descriptor for the OTD Fix-the-Risk advisory A2A agent (Claude-backed, Joule-frontable). Validates inbound A2A caller JWTs and enables principal propagation to S/4HANA. No custom scopes: the agent is zero-write and returns only data the calling user is already authorized to see (RBAC pass-through).",
+  "scopes": [],
+  "attributes": [],
+  "role-templates": [],
+  "oauth2-configuration": {
+    "credential-types": ["binding-secret"],
+    "grant-types": [
+      "authorization_code",
+      "client_credentials",
+      "urn:ietf:params:oauth:grant-type:jwt-bearer"
+    ]
+  }
+}

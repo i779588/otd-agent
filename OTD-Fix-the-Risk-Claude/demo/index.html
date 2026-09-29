@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OTD — Fix the Risk · advisory copilot</title>
+  <style>
+    :root {
+      --bg: #0b1020; --panel: #141b32; --panel2: #1b2444; --ink: #e8ecf7;
+      --muted: #9aa6c7; --accent: #4f8cff; --warn: #ffb020; --ok: #2ecc71; --err: #ff5c72;
+      --border: #26314f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg); color: var(--ink); line-height: 1.5;
+    }
+    header { padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--panel); }
+    header h1 { margin: 0; font-size: 18px; }
+    header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .banner {
+      padding: 8px 12px; border-radius: 8px; font-size: 12.5px; margin: 14px 24px 0;
+    }
+    .banner.mock { background: rgba(255,176,32,.12); border: 1px solid var(--warn); color: var(--warn); }
+    .banner.live { background: rgba(46,204,113,.12); border: 1px solid var(--ok); color: var(--ok); }
+    main { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 980px; margin: 0 auto; padding: 20px 24px 40px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .card h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+    textarea {
+      width: 100%; min-height: 84px; resize: vertical; background: var(--panel2); color: var(--ink);
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: inherit;
+    }
+    .prompts { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+    .chip {
+      background: var(--panel2); border: 1px solid var(--border); color: var(--ink);
+      border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+    }
+    .chip:hover { border-color: var(--accent); }
+    .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+    button.primary {
+      background: var(--accent); color: white; border: none; border-radius: 8px;
+      padding: 10px 18px; font-size: 14px; cursor: pointer; font-weight: 600;
+    }
+    button.primary:disabled { opacity: .55; cursor: default; }
+    .state { font-size: 12.5px; color: var(--muted); }
+    .state.ok { color: var(--ok); } .state.error { color: var(--err); }
+    pre.response {
+      white-space: pre-wrap; word-wrap: break-word; background: var(--panel2);
+      border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 13.5px;
+      margin: 0; min-height: 60px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .disclaimer { color: var(--muted); font-size: 11.5px; margin-top: 10px; }
+    .scenario { color: var(--muted); font-size: 12.5px; }
+    .scenario code { color: var(--ink); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>OTD — Fix the Risk · advisory copilot</h1>
+    <p>Claude-backed A2A agent (Joule-frontable) · zero-write · advisory-only</p>
+  </header>
+
+  <div class="banner mock" id="banner">
+    Detecting run mode…
+  </div>
+
+  <main>
+    <div class="card">
+      <h2>Ask the OTD copilot</h2>
+      <textarea id="query" placeholder="e.g. Which sales orders are at risk of missing their delivery date today?"></textarea>
+      <div class="prompts" id="prompts"></div>
+      <div class="row">
+        <button class="primary" id="ask">Ask</button>
+        <span class="state" id="state"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Advisory response</h2>
+      <pre class="response" id="response">Ask a question to see the agent's advisory dossier.</pre>
+      <p class="disclaimer" id="disclaimer">
+        Advisory only. Recommendations require manual review and execution by an authorized planner.
+        This is not financial advice; figures are illustrative mock data.
+      </p>
+    </div>
+
+    <div class="card" id="scenarioCard">
+      <h2>Mock scenario (what the fixtures contain)</h2>
+      <p class="scenario">
+        Six sales orders, one per root-cause category plus a healthy control:<br />
+        · <code>4500001</code> — Material Shortage (steel; 20 of 500 in stock, production order short on components)<br />
+        · <code>4500002</code> — Capacity/Production Constraint (work-center overloaded; finish slips)<br />
+        · <code>4500003</code> — Warehouse/Logistics Bottleneck (delivery unpicked, goods issue overdue)<br />
+        · <code>4500004</code> — Transit/Carrier Delay (freight order ETA 5 days late)<br />
+        · <code>4500005</code> — Healthy / on-track (control)
+      </p>
+    </div>
+  </main>
+
+  <script>
+    const SAMPLES = [
+      "Which sales orders are at risk of missing their delivery date today?",
+      "Give me an executive OTD risk summary for this week",
+      "Diagnose the root cause for sales order 4500001 and recommend actions",
+    ];
+    const promptsEl = document.getElementById("prompts");
+    const queryEl = document.getElementById("query");
+    const askBtn = document.getElementById("ask");
+    const stateEl = document.getElementById("state");
+    const responseEl = document.getElementById("response");
+    const bannerEl = document.getElementById("banner");
+    const disclaimerEl = document.getElementById("disclaimer");
+    const scenarioCard = document.getElementById("scenarioCard");
+
+    let MODE = "mock";  // updated from /api/mode on load
+
+    async function detectMode() {
+      try {
+        const res = await fetch("/api/mode");
+        const data = await res.json();
+        MODE = data.mode === "live" ? "live" : "mock";
+      } catch (_e) { MODE = "mock"; }
+      applyMode();
+    }
+
+    function applyMode() {
+      if (MODE === "live") {
+        bannerEl.className = "banner live";
+        bannerEl.innerHTML =
+          "LIVE — real S/4HANA data via the <strong>read-only</strong> OData bridge " +
+          "(GET only, zero-write by construction). The LLM reasoning step calls Anthropic directly. " +
+          "Only data the calling user is authorized to see is returned.";
+        disclaimerEl.textContent =
+          "Advisory only. Recommendations require manual review and execution by an authorized " +
+          "planner. This is not financial advice. The agent never writes to SAP.";
+        scenarioCard.style.display = "none";
+      } else {
+        bannerEl.className = "banner mock";
+        bannerEl.innerHTML =
+          "DEMO — mock data. Tools return deterministic fixtures from <code>mcp-mock.json</code> " +
+          "(IBD_TESTING=1). No SAP system is contacted. The LLM reasoning step calls Anthropic " +
+          "directly and needs <code>ANTHROPIC_API_KEY</code> set on the agent process.";
+        disclaimerEl.textContent =
+          "Advisory only. Recommendations require manual review and execution by an authorized " +
+          "planner. This is not financial advice; figures are illustrative mock data.";
+        scenarioCard.style.display = "";
+      }
+    }
+
+    SAMPLES.forEach((s) => {
+      const b = document.createElement("button");
+      b.className = "chip"; b.textContent = s;
+      b.onclick = () => { queryEl.value = s; queryEl.focus(); };
+      promptsEl.appendChild(b);
+    });
+
+    async function ask() {
+      const query = queryEl.value.trim();
+      if (!query) { queryEl.focus(); return; }
+      askBtn.disabled = true;
+      stateEl.className = "state";
+      stateEl.textContent = MODE === "live"
+        ? "Thinking… (querying live S/4HANA read-only + Claude reasoning)"
+        : "Thinking… (running mock tools + Claude reasoning)";
+      responseEl.textContent = "";
+      try {
+        const res = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        });
+        const data = await res.json();
+        responseEl.textContent = data.text || "(empty response)";
+        const ok = data.state === "completed";
+        stateEl.className = "state " + (data.state === "error" ? "error" : (ok ? "ok" : ""));
+        stateEl.textContent = "Task state: " + (data.state || "unknown");
+      } catch (e) {
+        stateEl.className = "state error";
+        stateEl.textContent = "Request failed: " + e;
+      } finally {
+        askBtn.disabled = false;
+      }
+    }
+    askBtn.onclick = ask;
+    queryEl.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") ask();
+    });
+    detectMode();
+  </script>
+</body>
+</html>

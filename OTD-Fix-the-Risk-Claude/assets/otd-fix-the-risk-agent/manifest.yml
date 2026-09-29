@@ -1,0 +1,35 @@
+# Cloud Foundry manifest — OTD-Fix-the-Risk agent (Claude-backed, Joule-frontable)
+#
+# Push from THIS directory (it holds app/ + requirements.txt):
+#   cf push -f manifest.yml
+#
+# SECRETS ARE DELIBERATELY NOT IN THIS FILE (it is committable). Set them with
+# `cf set-env` after the first push — see DEPLOY.md §8:
+#   ANTHROPIC_API_KEY, BTP_DESTINATION_NAME, OTD_SERVICE_BASE_URLS,
+#   and AGENT_PUBLIC_URL (the assigned route).
+#
+# The app reads $PORT (injected by CF) and binds 0.0.0.0 — no port config needed.
+---
+applications:
+  - name: otd-fix-the-risk-agent
+    memory: 1G
+    disk_quota: 2G
+    instances: 1
+    buildpacks:
+      - python_buildpack
+    command: python app/main.py
+    health-check-type: http
+    health-check-http-endpoint: /.well-known/agent-card.json
+    env:
+      # Non-secret defaults only.
+      IBD_TESTING: "0"                      # 0 = live OData bridge; "1" = offline mock
+      OTD_TOKEN_EXCHANGE_MODE: "destination"
+      OTD_HTTP_TIMEOUT_SECONDS: "30"
+    # Bind the destination + connectivity + xsuaa service instances BEFORE first
+    # push (cf create-service / cf bind-service), then uncomment — see DEPLOY.md §8.
+    # With a bound 'destination' service, token_exchange reads it from VCAP_SERVICES
+    # and only BTP_DESTINATION_NAME is needed (no pasted token).
+    # services:
+    #   - otd-destination
+    #   - otd-connectivity
+    #   - otd-xsuaa

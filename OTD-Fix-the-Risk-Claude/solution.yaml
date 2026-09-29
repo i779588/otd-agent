@@ -1,0 +1,28 @@
+apiVersion: solution.sap/v1
+kind: Solution
+metadata:
+  name: otd-fix-the-risk
+  version: "1.0.0"
+  description: >
+    OTD-Fix-the-Risk: A zero-write, advisory-only AI copilot for Supply Chain Planners
+    and Executives. Detects at-risk sales orders, diagnoses root causes, scores priorities,
+    and generates advisory dossiers using live SAP S/4HANA data.
+
+assets:
+  - name: otd-fix-the-risk-agent
+    path: assets/otd-fix-the-risk-agent
+
+  - name: sap-s4-ce-salesorder-0001-mcp-server
+    path: assets/sap-s4-ce-salesorder-0001-mcp-server
+
+  - name: sap-s4-warehouseavailablestock-0001-mcp-server
+    path: assets/sap-s4-warehouseavailablestock-0001-mcp-server
+
+  - name: sap-s4-api-production-order-2-srv-mcp-server
+    path: assets/sap-s4-api-production-order-2-srv-mcp-server
+
+  - name: sap-s4-api-outbound-delivery-srv-0002-mcp-server
+    path: assets/sap-s4-api-outbound-delivery-srv-0002-mcp-server
+
+  - name: sap-s4-ce-freightorder-0001-mcp-server
+    path: assets/sap-s4-ce-freightorder-0001-mcp-server

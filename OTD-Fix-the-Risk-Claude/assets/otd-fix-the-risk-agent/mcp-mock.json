@@ -1,0 +1,319 @@
+{
+  "_comment": "OFFLINE MOCK FIXTURES — read only when IBD_TESTING=1 (see app/mcp_providers/agw.py _build_mock_tools). NOT real SAP data; deterministic scenario data for demo + tests. In mock mode every tool ignores its arguments and returns the fixed mock_response below, so list_* tools carry the full cross-linked scenario and get_*_by_key tools return one representative record. Scenario: 6 sales orders — SO-4500001 (Material Shortage), SO-4500002 (Capacity/Production Constraint), SO-4500003 (Warehouse/Logistics Bottleneck), SO-4500004 (Transit/Carrier Delay), SO-4500005 (healthy/on-track), cross-referenced across all 5 services. 'today' in this dataset is 2026-09-28. Cross-reference fields (e.g. SalesOrderRef) are illustrative joins to make the demo coherent, not verbatim S/4 field names.",
+  "servers": {
+    "sap-s4-ce-salesorder-0001": {
+      "tools": {
+        "get_metadata_sap_self": {
+          "description": "Get metadata of the OData service.",
+          "input_schema": {"type": "object", "properties": {}},
+          "mock_response": {"EntitySets": ["SalesOrder", "SalesOrderItem", "SalesOrderScheduleLine"], "note": "Metadata omitted in mock mode."}
+        },
+        "list_salesorder_for_sap_self": {
+          "description": "Retrieve a list of sales orders. Supports OData query options for filtering, sorting, paging, expanding, counting, selecting specific properties.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "count": {"type": "boolean", "description": "Include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"SalesOrder": "4500001", "SoldToParty": "1000101", "CustomerName": "Global Auto Parts Inc", "CustomerTier": "A", "TotalNetAmount": "480000.00", "TransactionCurrency": "USD", "RequestedDeliveryDate": "2026-10-02", "OverallDeliveryStatus": "A", "OverallSDProcessStatus": "B", "SLAPenaltyAmount": "48000.00", "DeliveryBlockStatus": "", "_scenarioHint": "Confirmed qty far below ordered qty; upstream production order flagged material shortage."},
+              {"SalesOrder": "4500002", "SoldToParty": "1000102", "CustomerName": "Nordic Machines AB", "CustomerTier": "B", "TotalNetAmount": "220000.00", "TransactionCurrency": "EUR", "RequestedDeliveryDate": "2026-10-01", "OverallDeliveryStatus": "A", "OverallSDProcessStatus": "B", "SLAPenaltyAmount": "15000.00", "DeliveryBlockStatus": "", "_scenarioHint": "Production order finish date slips past requested date due to work-center capacity overload."},
+              {"SalesOrder": "4500003", "SoldToParty": "1000103", "CustomerName": "Pacific Retail Co", "CustomerTier": "A", "TotalNetAmount": "150000.00", "TransactionCurrency": "USD", "RequestedDeliveryDate": "2026-09-30", "OverallDeliveryStatus": "A", "OverallSDProcessStatus": "B", "SLAPenaltyAmount": "12000.00", "DeliveryBlockStatus": "", "_scenarioHint": "Outbound delivery exists but picking not started and goods issue not posted; planned GI date already passed."},
+              {"SalesOrder": "4500004", "SoldToParty": "1000104", "CustomerName": "Iberia Foods SL", "CustomerTier": "B", "TotalNetAmount": "95000.00", "TransactionCurrency": "EUR", "RequestedDeliveryDate": "2026-09-29", "OverallDeliveryStatus": "B", "OverallSDProcessStatus": "B", "SLAPenaltyAmount": "8000.00", "DeliveryBlockStatus": "", "_scenarioHint": "Goods already issued and handed to carrier, but freight order stop shows carrier arrival slipping past requested date."},
+              {"SalesOrder": "4500005", "SoldToParty": "1000105", "CustomerName": "Benelux Traders BV", "CustomerTier": "C", "TotalNetAmount": "40000.00", "TransactionCurrency": "EUR", "RequestedDeliveryDate": "2026-10-05", "OverallDeliveryStatus": "A", "OverallSDProcessStatus": "B", "SLAPenaltyAmount": "0.00", "DeliveryBlockStatus": "", "_scenarioHint": "Healthy / on-track: fully confirmed, stock available, delivery planned before requested date."}
+            ]
+          }
+        },
+        "get_salesorder_for_sap_self": {
+          "description": "Retrieve a single sales order by key.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "salesorder": {"type": "string", "description": "Sales order number (key)"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"}
+            },
+            "required": ["salesorder"]
+          },
+          "mock_response": {"SalesOrder": "4500001", "SoldToParty": "1000101", "CustomerName": "Global Auto Parts Inc", "CustomerTier": "A", "TotalNetAmount": "480000.00", "TransactionCurrency": "USD", "RequestedDeliveryDate": "2026-10-02", "OverallDeliveryStatus": "A", "OverallSDProcessStatus": "B", "SLAPenaltyAmount": "48000.00", "DeliveryBlockStatus": ""}
+        },
+        "list_salesorderitem_for_sap_self": {
+          "description": "Retrieve a list of sales order items. Supports OData query options.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "count": {"type": "boolean", "description": "Include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"SalesOrder": "4500001", "SalesOrderItem": "10", "Material": "MAT-STEEL-01", "MaterialName": "Cold-rolled steel coil", "Plant": "1710", "RequestedQuantity": "500", "ConfirmedQuantity": "20", "OrderQuantityUnit": "EA"},
+              {"SalesOrder": "4500002", "SalesOrderItem": "10", "Material": "MAT-GEAR-77", "MaterialName": "Precision gear assembly", "Plant": "1710", "RequestedQuantity": "300", "ConfirmedQuantity": "300", "OrderQuantityUnit": "EA"},
+              {"SalesOrder": "4500003", "SalesOrderItem": "10", "Material": "MAT-PACK-05", "MaterialName": "Retail packaging kit", "Plant": "1710", "RequestedQuantity": "1000", "ConfirmedQuantity": "1000", "OrderQuantityUnit": "EA"},
+              {"SalesOrder": "4500004", "SalesOrderItem": "10", "Material": "MAT-FOOD-12", "MaterialName": "Packaged food pallet", "Plant": "1710", "RequestedQuantity": "600", "ConfirmedQuantity": "600", "OrderQuantityUnit": "EA"},
+              {"SalesOrder": "4500005", "SalesOrderItem": "10", "Material": "MAT-TOOL-33", "MaterialName": "Hand tool set", "Plant": "1710", "RequestedQuantity": "200", "ConfirmedQuantity": "200", "OrderQuantityUnit": "EA"}
+            ]
+          }
+        },
+        "list_salesorderscheduleline_for_sap_self": {
+          "description": "Retrieve a list of sales order schedule lines. Supports OData query options.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "count": {"type": "boolean", "description": "Include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"SalesOrder": "4500001", "SalesOrderItem": "10", "ScheduleLine": "1", "RequestedDeliveryDate": "2026-10-02", "ConfirmedDeliveryDate": "2026-10-11", "OrderQuantity": "500", "ConfirmedQuantity": "20", "DeliveredQuantity": "0"},
+              {"SalesOrder": "4500002", "SalesOrderItem": "10", "ScheduleLine": "1", "RequestedDeliveryDate": "2026-10-01", "ConfirmedDeliveryDate": "2026-10-08", "OrderQuantity": "300", "ConfirmedQuantity": "300", "DeliveredQuantity": "0"},
+              {"SalesOrder": "4500003", "SalesOrderItem": "10", "ScheduleLine": "1", "RequestedDeliveryDate": "2026-09-30", "ConfirmedDeliveryDate": "2026-09-30", "OrderQuantity": "1000", "ConfirmedQuantity": "1000", "DeliveredQuantity": "0"},
+              {"SalesOrder": "4500004", "SalesOrderItem": "10", "ScheduleLine": "1", "RequestedDeliveryDate": "2026-09-29", "ConfirmedDeliveryDate": "2026-09-29", "OrderQuantity": "600", "ConfirmedQuantity": "600", "DeliveredQuantity": "600"},
+              {"SalesOrder": "4500005", "SalesOrderItem": "10", "ScheduleLine": "1", "RequestedDeliveryDate": "2026-10-05", "ConfirmedDeliveryDate": "2026-10-03", "OrderQuantity": "200", "ConfirmedQuantity": "200", "DeliveredQuantity": "0"}
+            ]
+          }
+        }
+      }
+    },
+    "sap-s4-warehouseavailablestock-0001": {
+      "tools": {
+        "get_metadata_sap_self": {
+          "description": "Get metadata of the OData service.",
+          "input_schema": {"type": "object", "properties": {}},
+          "mock_response": {"EntitySets": ["WarehouseAvailableStock"], "note": "Metadata omitted in mock mode."}
+        },
+        "list_warehouseavailablestock_for_sap_self": {
+          "description": "Retrieve a list of warehouse available stock records. Supports OData query options for filtering, sorting, paging, selecting specific properties.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "count": {"type": "boolean", "description": "Include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"EWMWarehouse": "1710", "Product": "MAT-STEEL-01", "Batch": "", "EWMStockType": "F1", "AvailableQuantity": "20", "BaseUnit": "EA", "_scenarioHint": "Only 20 of 500 required units on hand — material shortage for SO-4500001."},
+              {"EWMWarehouse": "1710", "Product": "MAT-GEAR-77", "Batch": "", "EWMStockType": "F1", "AvailableQuantity": "300", "BaseUnit": "EA"},
+              {"EWMWarehouse": "1710", "Product": "MAT-PACK-05", "Batch": "", "EWMStockType": "F1", "AvailableQuantity": "1000", "BaseUnit": "EA"},
+              {"EWMWarehouse": "1710", "Product": "MAT-FOOD-12", "Batch": "", "EWMStockType": "F1", "AvailableQuantity": "600", "BaseUnit": "EA"},
+              {"EWMWarehouse": "1710", "Product": "MAT-TOOL-33", "Batch": "", "EWMStockType": "F1", "AvailableQuantity": "200", "BaseUnit": "EA"}
+            ]
+          }
+        },
+        "get_warehouseavailablestock_for_sap_self": {
+          "description": "Retrieve a single warehouse available stock record by key.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "ewmwarehouse": {"type": "string", "description": "EWM warehouse (key)"},
+              "product": {"type": "string", "description": "Product (key)"},
+              "batch": {"type": "string", "description": "Batch (key)"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"}
+            },
+            "required": ["ewmwarehouse", "product"]
+          },
+          "mock_response": {"EWMWarehouse": "1710", "Product": "MAT-STEEL-01", "Batch": "", "EWMStockType": "F1", "AvailableQuantity": "20", "BaseUnit": "EA"}
+        }
+      }
+    },
+    "sap-s4-api-production-order-2-srv": {
+      "tools": {
+        "get_metadata_api_production_order_2_srv": {
+          "description": "Get metadata of the OData service.",
+          "input_schema": {"type": "object", "properties": {}},
+          "mock_response": {"EntitySets": ["A_ProductionOrder_2"], "note": "Metadata omitted in mock mode."}
+        },
+        "list_a_productionorder_2_for_api_production_order_2_srv": {
+          "description": "Retrieve a list of production orders. Supports OData query options for filtering, sorting, paging, expanding, counting, selecting specific properties.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "inlinecount": {"type": "string", "description": "Set to 'allpages' to include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"ManufacturingOrder": "1000001", "Material": "MAT-STEEL-01", "ProductionPlant": "1710", "MfgOrderPlannedTotalQty": "500", "MfgOrderConfirmedYieldQty": "20", "MfgOrderScheduledStartDate": "2026-09-20", "MfgOrderScheduledEndDate": "2026-10-10", "ProductionOrderStatus": "CRTD RESA", "OrderIsCnfrmd": "", "SalesOrderRef": "4500001", "_scenarioHint": "Missing components (RESA = material availability shortage); scheduled end past requested delivery."},
+              {"ManufacturingOrder": "1000002", "Material": "MAT-GEAR-77", "ProductionPlant": "1710", "MfgOrderPlannedTotalQty": "300", "MfgOrderConfirmedYieldQty": "0", "MfgOrderScheduledStartDate": "2026-09-22", "MfgOrderScheduledEndDate": "2026-10-08", "ProductionOrderStatus": "REL", "OrderIsCnfrmd": "", "WorkCenterCapacityStatus": "OVERLOADED", "SalesOrderRef": "4500002", "_scenarioHint": "Components available but work-center capacity overloaded; scheduled end slips past requested delivery."}
+            ]
+          }
+        },
+        "get_a_productionorder_2_for_api_production_order_2_srv": {
+          "description": "Retrieve a single production order by manufacturing order number.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "manufacturingorder": {"type": "string", "description": "Manufacturing order number (key)"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"}
+            },
+            "required": ["manufacturingorder"]
+          },
+          "mock_response": {"ManufacturingOrder": "1000001", "Material": "MAT-STEEL-01", "ProductionPlant": "1710", "MfgOrderPlannedTotalQty": "500", "MfgOrderConfirmedYieldQty": "20", "MfgOrderScheduledStartDate": "2026-09-20", "MfgOrderScheduledEndDate": "2026-10-10", "ProductionOrderStatus": "CRTD RESA", "OrderIsCnfrmd": "", "SalesOrderRef": "4500001"}
+        }
+      }
+    },
+    "sap-s4-api-outbound-delivery-srv-0002": {
+      "tools": {
+        "get_metadata_api_outbound_delivery_srv": {
+          "description": "Get metadata of the OData service.",
+          "input_schema": {"type": "object", "properties": {}},
+          "mock_response": {"EntitySets": ["A_OutbDeliveryHeader", "A_OutbDeliveryItem"], "note": "Metadata omitted in mock mode."}
+        },
+        "list_a_outbdeliveryheader_for_api_outbound_delivery_srv": {
+          "description": "Retrieve a list of outbound delivery headers. Supports OData query options for filtering, sorting, paging, expanding, counting, selecting specific properties.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "inlinecount": {"type": "string", "description": "Set to 'allpages' to include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"DeliveryDocument": "80000001", "ReferenceSDDocument": "4500003", "ShipToParty": "1000103", "PlannedGoodsIssueDate": "2026-09-27", "ActualGoodsIssueDate": "", "OverallWarehouseActivityStatus": "A", "OverallGoodsMovementStatus": "A", "OverallPackingStatus": "A", "_scenarioHint": "Picking not started (status A) and no goods issue posted though planned GI date has passed — warehouse/logistics bottleneck."},
+              {"DeliveryDocument": "80000002", "ReferenceSDDocument": "4500004", "ShipToParty": "1000104", "PlannedGoodsIssueDate": "2026-09-24", "ActualGoodsIssueDate": "2026-09-24", "OverallWarehouseActivityStatus": "C", "OverallGoodsMovementStatus": "C", "OverallPackingStatus": "C", "_scenarioHint": "Goods issued and dispatched; downstream delay is in transit (see freight order)."},
+              {"DeliveryDocument": "80000005", "ReferenceSDDocument": "4500005", "ShipToParty": "1000105", "PlannedGoodsIssueDate": "2026-10-02", "ActualGoodsIssueDate": "", "OverallWarehouseActivityStatus": "B", "OverallGoodsMovementStatus": "A", "OverallPackingStatus": "B", "_scenarioHint": "Healthy: picking in progress on schedule, GI planned before requested delivery."}
+            ]
+          }
+        },
+        "get_a_outbdeliveryheader_for_api_outbound_delivery_srv": {
+          "description": "Retrieve a single outbound delivery header by delivery document number.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "deliverydocument": {"type": "string", "description": "Delivery document number (key)"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"}
+            },
+            "required": ["deliverydocument"]
+          },
+          "mock_response": {"DeliveryDocument": "80000001", "ReferenceSDDocument": "4500003", "ShipToParty": "1000103", "PlannedGoodsIssueDate": "2026-09-27", "ActualGoodsIssueDate": "", "OverallWarehouseActivityStatus": "A", "OverallGoodsMovementStatus": "A", "OverallPackingStatus": "A"}
+        },
+        "list_a_outbdeliveryitem_for_api_outbound_delivery_srv": {
+          "description": "Retrieve a list of outbound delivery items. Supports OData query options.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "inlinecount": {"type": "string", "description": "Set to 'allpages' to include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"DeliveryDocument": "80000001", "DeliveryDocumentItem": "10", "Material": "MAT-PACK-05", "ActualDeliveryQuantity": "0", "DeliveryQuantityUnit": "EA", "Plant": "1710"},
+              {"DeliveryDocument": "80000002", "DeliveryDocumentItem": "10", "Material": "MAT-FOOD-12", "ActualDeliveryQuantity": "600", "DeliveryQuantityUnit": "EA", "Plant": "1710"},
+              {"DeliveryDocument": "80000005", "DeliveryDocumentItem": "10", "Material": "MAT-TOOL-33", "ActualDeliveryQuantity": "0", "DeliveryQuantityUnit": "EA", "Plant": "1710"}
+            ]
+          }
+        }
+      }
+    },
+    "sap-s4-ce-freightorder-0001": {
+      "tools": {
+        "get_metadata_sap_self": {
+          "description": "Get metadata of the OData service.",
+          "input_schema": {"type": "object", "properties": {}},
+          "mock_response": {"EntitySets": ["FreightOrder", "FreightOrderStop"], "note": "Metadata omitted in mock mode."}
+        },
+        "list_freightorder_for_sap_self": {
+          "description": "Retrieve a list of freight orders. Supports OData query options for filtering, sorting, paging, expanding, counting, selecting specific properties.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "count": {"type": "boolean", "description": "Include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"TransportationOrderUUID": "11111111-1111-1111-1111-111111111111", "FreightOrder": "6100000001", "Carrier": "CARR-EXP-01", "CarrierName": "ExpressLine Logistics", "ReferenceDeliveryDocument": "80000002", "TransportationMode": "Road", "OverallStatus": "In Transit", "_scenarioHint": "In transit but carrier stop ETA slipped past requested delivery date — transit/carrier delay for SO-4500004."}
+            ]
+          }
+        },
+        "get_freightorder_for_sap_self": {
+          "description": "Retrieve a single freight order by UUID.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "transportationorderuuid": {"type": "string", "description": "Transportation order UUID (key)"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"}
+            },
+            "required": ["transportationorderuuid"]
+          },
+          "mock_response": {"TransportationOrderUUID": "11111111-1111-1111-1111-111111111111", "FreightOrder": "6100000001", "Carrier": "CARR-EXP-01", "CarrierName": "ExpressLine Logistics", "ReferenceDeliveryDocument": "80000002", "TransportationMode": "Road", "OverallStatus": "In Transit"}
+        },
+        "list_freightorderstop_for_sap_self": {
+          "description": "Retrieve a list of freight order stops. Supports OData query options.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "filter": {"type": "string", "description": "OData $filter expression"},
+              "select": {"type": "string", "description": "Comma-separated properties to return"},
+              "orderby": {"type": "string", "description": "OData $orderby expression"},
+              "top": {"type": "integer", "description": "Max records to return (page size, <=100)"},
+              "skip": {"type": "integer", "description": "Records to skip (paging offset)"},
+              "expand": {"type": "string", "description": "OData $expand navigation properties"},
+              "count": {"type": "boolean", "description": "Include total count"}
+            }
+          },
+          "mock_response": {
+            "value": [
+              {"TransportationOrderUUID": "11111111-1111-1111-1111-111111111111", "FreightOrderStop": "1", "StopType": "Departure", "Location": "Plant 1710 DC", "PlannedArrivalDateTime": "2026-09-24T08:00:00Z", "EstimatedArrivalDateTime": "2026-09-24T08:00:00Z"},
+              {"TransportationOrderUUID": "11111111-1111-1111-1111-111111111111", "FreightOrderStop": "2", "StopType": "Destination", "Location": "Iberia Foods DC Madrid", "PlannedArrivalDateTime": "2026-09-26T18:00:00Z", "EstimatedArrivalDateTime": "2026-10-01T18:00:00Z", "_scenarioHint": "Estimated arrival 5 days past plan and past the 2026-09-29 requested delivery — carrier delay."}
+            ]
+          }
+        }
+      }
+    }
+  }
+}
