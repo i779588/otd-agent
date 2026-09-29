@@ -28,10 +28,14 @@ from mcp_providers.agw import get_user_sub
 try:
     from gen_ai_hub.proxy.core import get_proxy_client as _aicore_get_proxy_client
     from gen_ai_hub.proxy.langchain import amazon as _aicore_amazon
+    from gen_ai_hub.proxy.langchain import google_genai as _aicore_google
+    from gen_ai_hub.proxy.langchain import openai as _aicore_openai
     _AICORE_SDK_AVAILABLE = True
 except ImportError:
     _aicore_get_proxy_client = None  # type: ignore[assignment]
     _aicore_amazon = None            # type: ignore[assignment]
+    _aicore_google = None            # type: ignore[assignment]
+    _aicore_openai = None            # type: ignore[assignment]
     _AICORE_SDK_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
@@ -60,26 +64,45 @@ def _get_aicore_deployment_id() -> str:
     return os.environ.get("AICORE_DEPLOYMENT_ID", "d009d0ca6a44ae29")
 
 
+def _select_aicore_init_func(model_name: str):
+    """Pick the gen_ai_hub init_chat_model matching the deployment's provider.
+
+    Mirrors gen_ai_hub.proxy.langchain.init_models._get_init_func: anthropic/amazon
+    deployments use the Bedrock backend, google/gemini use Gemini, and everything
+    else (gpt-*, etc.) uses the OpenAI backend. Dispatching by the deployment's
+    actual model name means the route works whichever deployment id it is pointed
+    at, instead of assuming a Claude/Bedrock model.
+    """
+    name = (model_name or "").lower()
+    if name.startswith(("amazon", "anthropic")):
+        return _aicore_amazon.init_chat_model
+    if name.startswith(("google", "gemini")):
+        return _aicore_google.init_chat_model
+    return _aicore_openai.init_chat_model
+
+
 def _build_aicore_llm(
     deployment_id: str,
     temperature: float,
     max_tokens: int = 8192,
 ) -> BaseLanguageModel:
-    """Build a ChatBedrock LLM via SAP Gen AI Hub for a specific deployment.
+    """Build a chat LLM via SAP Gen AI Hub for a specific deployment.
 
-    SAP serves Claude via an AWS Bedrock backend; the gen_ai_hub SDK handles
-    OAuth2 (client-credentials) auth and the AI-Resource-Group header
-    transparently. Credentials come from AICORE_* environment variables:
+    The gen_ai_hub SDK handles OAuth2 (client-credentials) auth and the
+    AI-Resource-Group header transparently. Credentials come from AICORE_*
+    environment variables:
       AICORE_BASE_URL, AICORE_AUTH_URL, AICORE_CLIENT_ID, AICORE_CLIENT_SECRET,
       AICORE_RESOURCE_GROUP (optional, default 'default').
-    See .env.example for the full list.
+    See .env.example for the full list. The correct langchain backend
+    (Bedrock / Gemini / OpenAI) is chosen from the selected deployment's model
+    name, so any provider hosted in the hub works.
 
     :param deployment_id: AI Core deployment id (e.g. 'd009d0ca6a44ae29').
     :param temperature: Sampling temperature passed to the model.
     :param max_tokens: Maximum output tokens (default 8192).
-    :raises ImportError: If sap-ai-sdk-gen, botocore, or langchain-aws are not installed.
+    :raises ImportError: If the gen_ai_hub SDK / provider backends are not installed.
     :raises ValueError: If no deployment with the given id is found in AI Core.
-    :return: A ChatBedrock instance wired to the specified AI Core deployment.
+    :return: A langchain chat model wired to the specified AI Core deployment.
     """
     if not _AICORE_SDK_AVAILABLE:
         raise ImportError(
@@ -94,7 +117,8 @@ def _build_aicore_llm(
         deployment.deployment_id,
         getattr(deployment, "model_name", "unknown"),
     )
-    return _aicore_amazon.init_chat_model(
+    init_chat_model = _select_aicore_init_func(getattr(deployment, "model_name", ""))
+    return init_chat_model(
         proxy_client=proxy_client,
         deployment=deployment,
         temperature=temperature,
