@@ -85,20 +85,31 @@ Only once you have a tenant + credentials. This path runs off SAP AI Core — a
 Golden Path deviation that needs the exception in `agent-outcome-report.md` §4
 cleared before any real/customer data flows.
 
-**4a. Configure `.env`** (secrets live here only). For a BTP Destination:
+**4a. Configure `.env`** (secrets live here only).
+
+*Default — `basic` mode (fixed technical user, fastest live test):*
+
+```bash
+OTD_TOKEN_EXCHANGE_MODE=basic
+OTD_S4_USER=<S/4HANA Cloud communication user>
+OTD_S4_PASSWORD=<its password>
+OTD_SERVICE_BASE_URLS={"sap.s4:apiResource:CE_SALESORDER_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_salesorder/srvd_a2x/sap/salesorder/0001","sap.s4:apiResource:WAREHOUSEAVAILABLESTOCK_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_warehouse_available_stock/srvd_a2x/sap/warehouseavailablestock/0001","sap.s4:apiResource:API_PRODUCTION_ORDER_2_SRV:v1":"https://<s4-host>/sap/opu/odata/sap/API_PRODUCTION_ORDER_2_SRV","sap.s4:apiResource:API_OUTBOUND_DELIVERY_SRV_0002:v2":"https://<s4-host>/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV;v=0002","sap.s4:apiResource:CE_FREIGHTORDER_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_freightorder/srvd_a2x/sap/freightorder/0001"}
+```
+
+The communication user must be assigned (via a Communication Arrangement) to the
+inbound services exposing these 5 OData APIs, else calls return `403`. Every call
+acts as this one identity (no per-user RBAC) — a documented deviation from the
+production principal-propagation model (see `agent-outcome-report.md` §4).
+
+*Upgrade path — `destination` mode (per-user principal propagation, no S/4 creds in the app):*
 
 ```bash
 OTD_TOKEN_EXCHANGE_MODE=destination
 BTP_DESTINATION_URL=https://<subaccount>.dest-configuration.<region>.hana.ondemand.com/destination-configuration/v1
 BTP_DESTINATION_NAME=<your-s4-destination>
 BTP_DESTINATION_TOKEN=<oauth-token-for-the-destination-service>
-OTD_SERVICE_BASE_URLS={"sap.s4:apiResource:CE_SALESORDER_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_salesorder/srvd_a2x/sap/salesorder/0001","sap.s4:apiResource:WAREHOUSEAVAILABLESTOCK_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_warehouse_available_stock/srvd_a2x/sap/warehouseavailablestock/0001","sap.s4:apiResource:API_PRODUCTION_ORDER_2_SRV:v1":"https://<s4-host>/sap/opu/odata/sap/API_PRODUCTION_ORDER_2_SRV","sap.s4:apiResource:API_OUTBOUND_DELIVERY_SRV_0002:v2":"https://<s4-host>/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV;v=0002","sap.s4:apiResource:CE_FREIGHTORDER_0001:v1":"https://<s4-host>/sap/opu/odata4/sap/api_freightorder/srvd_a2x/sap/freightorder/0001"}
+OTD_SERVICE_BASE_URLS={...same map as above...}
 ```
-
-The `ordId` keys above are fixed (they match the shipped translation specs);
-only the `https://<s4-host>/...` base URLs are yours to fill from the S/4 service
-catalog. The Destination holds the S/4 auth config — the agent never handles S/4
-client secrets directly.
 
 **4b. Smoke-test connectivity first (read-only — one `$metadata` GET per service):**
 
@@ -159,9 +170,10 @@ The app is CF-ready: it reads the injected `$PORT`, binds `0.0.0.0`, and ships a
 `manifest.yml` + `Procfile` in `assets/otd-fix-the-risk-agent/`. Secrets are **not**
 in the manifest — they go in via `cf set-env` / service bindings.
 
-**8a. (Principal propagation) create + bind the platform services.** With a bound
-`destination` service, `token_exchange` reads it from `VCAP_SERVICES` and you only
-need `BTP_DESTINATION_NAME` — no pasted token.
+**8a. (Only for the `destination`/`xsuaa` upgrade paths) create + bind the platform
+services.** The default `basic` mode needs **no** service bindings — skip to 8b.
+With a bound `destination` service, `token_exchange` reads it from `VCAP_SERVICES`
+and you only need `BTP_DESTINATION_NAME` — no pasted token.
 
 ```bash
 cf create-service destination        lite   otd-destination
@@ -180,18 +192,21 @@ cd assets/otd-fix-the-risk-agent
 cf push -f manifest.yml
 ```
 
-**8c. Set the secrets / env-specific values** (never in the manifest), then restage:
+**8c. Set the secrets / env-specific values** (never in the manifest), then restage.
+The manifest defaults `OTD_TOKEN_EXCHANGE_MODE=basic`, so set the technical-user creds:
 
 ```bash
 cf set-env otd-fix-the-risk-agent ANTHROPIC_API_KEY      "sk-ant-..."
-cf set-env otd-fix-the-risk-agent BTP_DESTINATION_NAME   "<your-s4-destination>"
+cf set-env otd-fix-the-risk-agent OTD_S4_USER            "<communication user>"
+cf set-env otd-fix-the-risk-agent OTD_S4_PASSWORD        "<its password>"
 cf set-env otd-fix-the-risk-agent OTD_SERVICE_BASE_URLS  '{"sap.s4:apiResource:CE_SALESORDER_0001:v1":"https://<s4-host>/...", ...}'
 cf set-env otd-fix-the-risk-agent AGENT_PUBLIC_URL        "https://<the-assigned-route>/"
 cf restage otd-fix-the-risk-agent
 ```
 
-For the **local / off-CF** form instead (no bound service), also
-`cf set-env` `BTP_DESTINATION_URL` + `BTP_DESTINATION_TOKEN` — the module falls
+For the `destination` upgrade path instead, set `OTD_TOKEN_EXCHANGE_MODE=destination`
++ `BTP_DESTINATION_NAME` (with the bound service from 8a), or — off the bound
+service — also `BTP_DESTINATION_URL` + `BTP_DESTINATION_TOKEN`; the module falls
 back to those when `VCAP_SERVICES` has no `destination` binding.
 
 **8d. Verify:**
