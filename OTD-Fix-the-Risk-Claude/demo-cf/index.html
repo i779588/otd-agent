@@ -320,6 +320,11 @@
     .typing-dot:nth-child(2) { animation-delay: .2s; }
     .typing-dot:nth-child(3) { animation-delay: .4s; }
     @keyframes blink { 0%,80%,100%{opacity:.4} 40%{opacity:1} }
+    .typing-status { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .typing-elapsed {
+      font-size: 11px; color: var(--muted); opacity: .7;
+      margin-left: 8px; font-variant-numeric: tabular-nums;
+    }
 
     /* ── Input bar ── */
     .input-area {
@@ -757,7 +762,17 @@ function appendUserMsg(text) {
   scrollBottom();
 }
 
+let _typingTimer = null;
+
 function appendTyping() {
+  const steps = [
+    "Loading OTD risk skill…",
+    "Querying sales orders…",
+    "Checking stock, production & deliveries…",
+    "Checking freight & transit…",
+    "Classifying root causes…",
+    "Scoring priority & writing advisory…",
+  ];
   const el = document.createElement("div");
   el.className = "typing-row";
   el.id = "typingIndicator";
@@ -767,12 +782,30 @@ function appendTyping() {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
+      <span class="typing-status" id="typingStatus">${steps[0]}</span>
+      <span class="typing-elapsed" id="typingElapsed">0s</span>
     </div>`;
   msgs().appendChild(el);
   scrollBottom();
+
+  const t0 = Date.now();
+  let i = 0;
+  _typingTimer = setInterval(() => {
+    const secs = Math.round((Date.now() - t0) / 1000);
+    const elapsed = document.getElementById("typingElapsed");
+    if (elapsed) elapsed.textContent = secs + "s";
+    // advance the step label roughly every ~4s, holding on the last one
+    const step = Math.min(steps.length - 1, Math.floor(secs / 4));
+    if (step !== i) {
+      i = step;
+      const st = document.getElementById("typingStatus");
+      if (st) st.textContent = steps[i];
+    }
+  }, 250);
 }
 
 function removeTyping() {
+  if (_typingTimer) { clearInterval(_typingTimer); _typingTimer = null; }
   const el = document.getElementById("typingIndicator");
   if (el) el.remove();
 }
