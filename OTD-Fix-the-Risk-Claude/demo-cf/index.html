@@ -123,6 +123,7 @@
     /* ── Chat area ── */
     .chat-wrap {
       flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -132,6 +133,7 @@
     .chat-messages {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       padding: 24px 32px;
       display: flex;
       flex-direction: column;
@@ -144,8 +146,13 @@
       display: flex;
       gap: 12px;
       align-items: flex-start;
+      width: 100%;
       max-width: 900px;
+      min-width: 0;
     }
+    /* Let flex children shrink below content size so wide content wraps/clips
+       inside the pane instead of overflowing the viewport. */
+    .msg-row > * { min-width: 0; overflow-wrap: anywhere; }
     .msg-row.user { flex-direction: row-reverse; margin-left: auto; }
 
     .avatar {
@@ -244,6 +251,8 @@
       padding: 12px 16px;
       border-right: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .card-section:nth-child(2n) { border-right: none; }
     .card-section:nth-last-child(-n+2) { border-bottom: none; }
