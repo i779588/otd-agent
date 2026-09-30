@@ -22,109 +22,7 @@ from sap_cloud_sdk.agent_memory.factory.langgraph_checkpoint import create_check
 from circuit_breaker import CircuitBreaker
 from mcp_providers.agw import get_user_sub
 
-# ---------------------------------------------------------------------------
-# Optional: SAP Gen AI Hub SDK (only required when OTD_LLM_ROUTE=aicore)
-# ---------------------------------------------------------------------------
-try:
-    from gen_ai_hub.proxy.core import get_proxy_client as _aicore_get_proxy_client
-    from gen_ai_hub.proxy.langchain import amazon as _aicore_amazon
-    from gen_ai_hub.proxy.langchain import google_genai as _aicore_google
-    from gen_ai_hub.proxy.langchain import openai as _aicore_openai
-    _AICORE_SDK_AVAILABLE = True
-except ImportError:
-    _aicore_get_proxy_client = None  # type: ignore[assignment]
-    _aicore_amazon = None            # type: ignore[assignment]
-    _aicore_google = None            # type: ignore[assignment]
-    _aicore_openai = None            # type: ignore[assignment]
-    _AICORE_SDK_AVAILABLE = False
-
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# LLM routing helpers
-# ---------------------------------------------------------------------------
-
-def _get_llm_route() -> str:
-    """Return 'aicore' (SAP Gen AI Hub) or 'direct' (Anthropic API).
-
-    Set OTD_LLM_ROUTE=aicore to route through the SAP Generative AI Hub —
-    the compliant Golden Path. The default ('direct') uses the Anthropic API
-    via LiteLLM and ANTHROPIC_API_KEY (governance deviation; see
-    agent-outcome-report.md §4).
-    """
-    return os.environ.get("OTD_LLM_ROUTE", "direct").lower()
-
-
-def _get_aicore_deployment_id() -> str:
-    """Return the AI Core deployment ID for the primary Claude model.
-
-    Defaults to the deployment id provided at project creation time.
-    Override via AICORE_DEPLOYMENT_ID in your .env.
-    """
-    return os.environ.get("AICORE_DEPLOYMENT_ID", "d009d0ca6a44ae29")
-
-
-def _select_aicore_init_func(model_name: str):
-    """Pick the gen_ai_hub init_chat_model matching the deployment's provider.
-
-    Mirrors gen_ai_hub.proxy.langchain.init_models._get_init_func: anthropic/amazon
-    deployments use the Bedrock backend, google/gemini use Gemini, and everything
-    else (gpt-*, etc.) uses the OpenAI backend. Dispatching by the deployment's
-    actual model name means the route works whichever deployment id it is pointed
-    at, instead of assuming a Claude/Bedrock model.
-    """
-    name = (model_name or "").lower()
-    if name.startswith(("amazon", "anthropic")):
-        return _aicore_amazon.init_chat_model
-    if name.startswith(("google", "gemini")):
-        return _aicore_google.init_chat_model
-    return _aicore_openai.init_chat_model
-
-
-def _build_aicore_llm(
-    deployment_id: str,
-    temperature: float,
-    max_tokens: int = 8192,
-) -> BaseLanguageModel:
-    """Build a chat LLM via SAP Gen AI Hub for a specific deployment.
-
-    The gen_ai_hub SDK handles OAuth2 (client-credentials) auth and the
-    AI-Resource-Group header transparently. Credentials come from AICORE_*
-    environment variables:
-      AICORE_BASE_URL, AICORE_AUTH_URL, AICORE_CLIENT_ID, AICORE_CLIENT_SECRET,
-      AICORE_RESOURCE_GROUP (optional, default 'default').
-    See .env.example for the full list. The correct langchain backend
-    (Bedrock / Gemini / OpenAI) is chosen from the selected deployment's model
-    name, so any provider hosted in the hub works.
-
-    :param deployment_id: AI Core deployment id (e.g. 'd009d0ca6a44ae29').
-    :param temperature: Sampling temperature passed to the model.
-    :param max_tokens: Maximum output tokens (default 8192).
-    :raises ImportError: If the gen_ai_hub SDK / provider backends are not installed.
-    :raises ValueError: If no deployment with the given id is found in AI Core.
-    :return: A langchain chat model wired to the specified AI Core deployment.
-    """
-    if not _AICORE_SDK_AVAILABLE:
-        raise ImportError(
-            "sap-ai-sdk-gen is required for OTD_LLM_ROUTE=aicore. "
-            "Run: pip install sap-ai-sdk-gen botocore langchain-aws"
-        )
-    proxy_client = _aicore_get_proxy_client()
-    # Pin to the specific deployment by id — no model-name guessing needed.
-    deployment = proxy_client.select_deployment(deployment_id=deployment_id)
-    logger.info(
-        "AI Core deployment selected: id=%s model=%s",
-        deployment.deployment_id,
-        getattr(deployment, "model_name", "unknown"),
-    )
-    init_chat_model = _select_aicore_init_func(getattr(deployment, "model_name", ""))
-    return init_chat_model(
-        proxy_client=proxy_client,
-        deployment=deployment,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
-
 
 # Transient failures that justify advancing to the next model in the fallback chain
 # and that count toward opening a model's circuit breaker. This mirrors the error
@@ -277,69 +175,35 @@ class SampleAgent:
         self._primary_model = get_model_name()
         self._temperature = get_temperature()
 
-        llm_route = _get_llm_route()
-
-        if llm_route == "aicore":
-            # ── SAP Gen AI Hub (compliant Golden Path) ────────────────────────
-            # Routes Claude through SAP AI Core / AWS Bedrock backend.
-            # No cache_control_injection_points (that is a LiteLLM feature);
-            # prompt caching is managed by the AI Core service layer.
-            _aicore_deployment_id = _get_aicore_deployment_id()
-            logger.info(
-                "LLM route: aicore (SAP Gen AI Hub) — deployment=%s",
-                _aicore_deployment_id,
-            )
-            _primary_llm = _build_aicore_llm(_aicore_deployment_id, self._temperature)
-            # Single-entry chain; circuit breaker still wraps this one model.
-            self._model_chain: list[tuple[str, BaseLanguageModel]] = [
-                (f"aicore:{_aicore_deployment_id}", _primary_llm)
+        _cache_kwargs = {
+            "cache_control_injection_points": [
+                {"location": "message", "role": "system", "control": {"type": "ephemeral"}}
             ]
-            self.llm = _primary_llm
+        }
+        logger.info("LLM route: direct (Anthropic API via LiteLLM)")
 
-            # Summarization: use the same deployment unless a cheaper one is
-            # configured separately via AICORE_SUMMARIZATION_DEPLOYMENT_ID.
-            _sum_deployment_id = os.environ.get(
-                "AICORE_SUMMARIZATION_DEPLOYMENT_ID", _aicore_deployment_id
+        def _build_llm(model: str) -> ChatLiteLLM:
+            return ChatLiteLLM(
+                model=model,
+                temperature=self._temperature,
+                model_kwargs=_cache_kwargs,
             )
-            summarization_llm: BaseLanguageModel = _build_aicore_llm(
-                _sum_deployment_id, temperature=0.0
-            )
 
-        else:
-            # ── Anthropic API direct (default, governance deviation) ──────────
-            # cache_control_injection_points is picked up by litellm's
-            # AnthropicCacheControlHook, which injects a cache breakpoint on the
-            # system message before every API call. This caches the static prefix
-            # (system prompt + tool schemas) at 0.1× input cost on cache-hit turns.
-            _cache_kwargs = {
-                "cache_control_injection_points": [
-                    {"location": "message", "role": "system", "control": {"type": "ephemeral"}}
-                ]
-            }
-            logger.info("LLM route: direct (Anthropic API via LiteLLM)")
+        # Ordered fallback chain: primary first, then each configured fallback.
+        # Fallbacks are given as a comma-separated list; blanks and duplicates
+        # are dropped while preserving order so a model is never tried twice.
+        fallback_models = [
+            m.strip() for m in get_fallback_model_names().split(",") if m.strip()
+        ]
+        ordered_models = list(dict.fromkeys([self._primary_model, *fallback_models]))
+        self._model_chain = [
+            (name, _build_llm(name)) for name in ordered_models
+        ]
+        self.llm = self._model_chain[0][1]
 
-            def _build_llm(model: str) -> ChatLiteLLM:
-                return ChatLiteLLM(
-                    model=model,
-                    temperature=self._temperature,
-                    model_kwargs=_cache_kwargs,
-                )
-
-            # Ordered fallback chain: primary first, then each configured fallback.
-            # Fallbacks are given as a comma-separated list; blanks and duplicates
-            # are dropped while preserving order so a model is never tried twice.
-            fallback_models = [
-                m.strip() for m in get_fallback_model_names().split(",") if m.strip()
-            ]
-            ordered_models = list(dict.fromkeys([self._primary_model, *fallback_models]))
-            self._model_chain = [
-                (name, _build_llm(name)) for name in ordered_models
-            ]
-            self.llm = self._model_chain[0][1]
-
-            summarization_llm = ChatLiteLLM(
-                model=get_summarization_model_name(), temperature=0.0
-            )
+        summarization_llm = ChatLiteLLM(
+            model=get_summarization_model_name(), temperature=0.0
+        )
 
         # The circuit breaker gives the chain a short cross-request memory: a model
         # that fails repeatedly is skipped for a cooldown instead of being re-tried

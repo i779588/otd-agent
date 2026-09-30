@@ -1,7 +1,3 @@
-from sap_cloud_sdk.aicore import set_aicore_config
-
-set_aicore_config()
-
 import logging
 import os
 

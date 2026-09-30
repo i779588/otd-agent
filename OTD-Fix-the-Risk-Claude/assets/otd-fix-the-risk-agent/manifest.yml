@@ -31,15 +31,10 @@ applications:
       OTD_TOKEN_EXCHANGE_MODE: "basic"      # fixed technical user via OTD_S4_USER/PASSWORD
                                             # (cf set-env). Upgrade paths: "destination" | "xsuaa".
       OTD_HTTP_TIMEOUT_SECONDS: "30"
-      # LLM routing: "aicore" = SAP Gen AI Hub (compliant Golden Path; AICORE_* secrets
-      # via cf set-env, which persist across push). "direct" = Anthropic API
-      # (ANTHROPIC_API_KEY required, governance deviation).
-      OTD_LLM_ROUTE: "aicore"
+      # LLM routing: Anthropic API direct (ANTHROPIC_API_KEY required).
+      OTD_LLM_ROUTE: "direct"
     # SECRETS — set after push via `cf set-env`, never in this file.
-    # For OTD_LLM_ROUTE=direct:  ANTHROPIC_API_KEY
-    # For OTD_LLM_ROUTE=aicore:  AICORE_CLIENT_ID, AICORE_CLIENT_SECRET,
-    #                             AICORE_BASE_URL, AICORE_AUTH_URL,
-    #                             AICORE_RESOURCE_GROUP, AICORE_DEPLOYMENT_ID
+    # ANTHROPIC_API_KEY
     # S/4 identity (basic mode): OTD_S4_USER, OTD_S4_PASSWORD
     # Always needed:              OTD_SERVICE_BASE_URLS, AGENT_PUBLIC_URL
     # For the `destination` upgrade path, bind the destination + connectivity + xsuaa
