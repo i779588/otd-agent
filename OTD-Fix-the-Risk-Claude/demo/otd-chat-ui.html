@@ -123,6 +123,7 @@
     /* ── Chat area ── */
     .chat-wrap {
       flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -132,6 +133,7 @@
     .chat-messages {
       flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
       padding: 24px 32px;
       display: flex;
       flex-direction: column;
@@ -144,8 +146,13 @@
       display: flex;
       gap: 12px;
       align-items: flex-start;
+      width: 100%;
       max-width: 900px;
+      min-width: 0;
     }
+    /* Let flex children shrink below content size so wide content wraps/clips
+       inside the pane instead of overflowing the viewport. */
+    .msg-row > * { min-width: 0; overflow-wrap: anywhere; }
     .msg-row.user { flex-direction: row-reverse; margin-left: auto; }
 
     .avatar {
@@ -244,6 +251,8 @@
       padding: 12px 16px;
       border-right: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .card-section:nth-child(2n) { border-right: none; }
     .card-section:nth-last-child(-n+2) { border-bottom: none; }
@@ -311,6 +320,11 @@
     .typing-dot:nth-child(2) { animation-delay: .2s; }
     .typing-dot:nth-child(3) { animation-delay: .4s; }
     @keyframes blink { 0%,80%,100%{opacity:.4} 40%{opacity:1} }
+    .typing-status { font-size: 13px; color: var(--muted); margin-left: 4px; }
+    .typing-elapsed {
+      font-size: 11px; color: var(--muted); opacity: .7;
+      margin-left: 8px; font-variant-numeric: tabular-nums;
+    }
 
     /* ── Input bar ── */
     .input-area {
@@ -748,7 +762,17 @@ function appendUserMsg(text) {
   scrollBottom();
 }
 
+let _typingTimer = null;
+
 function appendTyping() {
+  const steps = [
+    "Loading OTD risk skill…",
+    "Querying sales orders…",
+    "Checking stock, production & deliveries…",
+    "Checking freight & transit…",
+    "Classifying root causes…",
+    "Scoring priority & writing advisory…",
+  ];
   const el = document.createElement("div");
   el.className = "typing-row";
   el.id = "typingIndicator";
@@ -758,12 +782,30 @@ function appendTyping() {
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
+      <span class="typing-status" id="typingStatus">${steps[0]}</span>
+      <span class="typing-elapsed" id="typingElapsed">0s</span>
     </div>`;
   msgs().appendChild(el);
   scrollBottom();
+
+  const t0 = Date.now();
+  let i = 0;
+  _typingTimer = setInterval(() => {
+    const secs = Math.round((Date.now() - t0) / 1000);
+    const elapsed = document.getElementById("typingElapsed");
+    if (elapsed) elapsed.textContent = secs + "s";
+    // advance the step label roughly every ~4s, holding on the last one
+    const step = Math.min(steps.length - 1, Math.floor(secs / 4));
+    if (step !== i) {
+      i = step;
+      const st = document.getElementById("typingStatus");
+      if (st) st.textContent = steps[i];
+    }
+  }, 250);
 }
 
 function removeTyping() {
+  if (_typingTimer) { clearInterval(_typingTimer); _typingTimer = null; }
   const el = document.getElementById("typingIndicator");
   if (el) el.remove();
 }
@@ -784,9 +826,171 @@ function appendAgentMsg(html) {
   });
 }
 
+// ─── Mock OTD order data (mirrors mcp-mock.json fixtures) ─────────────────
+const ORDERS = [
+  { id:"4500001", customer:"Global Auto Parts Inc", tier:"Tier A", risk:"high", riskLabel:"High Risk",
+    score:9, rootCause:"Material shortage — only 20 of 500 units in stock", rootCauseIcon:"📦",
+    otd:"Missed by 2 days", otdMiss:true,
+    action:"Expedite procurement for MAT-STEEL-01; escalate to supply chain planner",
+    confidence:92, confDate:"2026-10-02", daysLeft:2 },
+  { id:"4500002", customer:"Nordic Machines AB", tier:"Tier B", risk:"high", riskLabel:"High Risk",
+    score:8, rootCause:"Work-center overloaded — 142% utilization", rootCauseIcon:"⚙️",
+    otd:"Missed by 3 days", otdMiss:true,
+    action:"Reroute operations to alternate work center WC-ASSEMBLY-B",
+    confidence:88, confDate:"2026-10-01", daysLeft:3 },
+  { id:"4500003", customer:"Pacific Retail Co", tier:"Tier A", risk:"med", riskLabel:"Medium Risk",
+    score:6, rootCause:"Outbound delivery unpicked — warehouse backlog", rootCauseIcon:"🏪",
+    otd:"At risk — 5 days remaining", otdMiss:false,
+    action:"Escalate delivery 80001235 to pick-priority; book carrier slot today",
+    confidence:79, confDate:"2026-09-30", daysLeft:5 },
+  { id:"4500004", customer:"Iberia Foods SL", tier:"Tier B", risk:"med", riskLabel:"Medium Risk",
+    score:5, rootCause:"Carrier stop ETA slipped past delivery date", rootCauseIcon:"🚚",
+    otd:"At risk — in transit", otdMiss:false,
+    action:"Contact carrier for updated ETA; assess alternative delivery options",
+    confidence:74, confDate:"2026-09-29", daysLeft:0 },
+  { id:"4500005", customer:"Benelux Traders BV", tier:"Tier C", risk:"low", riskLabel:"On Track",
+    score:3, rootCause:"No issues detected", rootCauseIcon:"✅",
+    otd:"On time — 5 days remaining", otdMiss:false,
+    action:"No action required",
+    confidence:96, confDate:"2026-10-05", daysLeft:5 }
+];
+
+// ─── Card rendering helpers ─────────────────────────────────────────────────
+
+function orderCard(o) {
+  return `
+  <div class="order-card">
+    <div class="card-header">
+      <div class="card-order-id">Order ${o.id} <span>${o.customer} · ${o.tier}</span></div>
+      <span class="risk-pill ${o.risk}"><span class="risk-dot"></span>${o.riskLabel}</span>
+    </div>
+    <div class="card-body">
+      <div class="card-section">
+        <div class="cs-label"><span class="cs-icon">${o.rootCauseIcon}</span> Root Cause</div>
+        <div class="cs-value">${o.rootCause}</div>
+      </div>
+      <div class="card-section">
+        <div class="cs-label"><span class="cs-icon">📅</span> Expected OTD</div>
+        <div class="cs-value ${o.otdMiss ? 'miss' : ''}">${o.otd}</div>
+      </div>
+      <div class="card-section">
+        <div class="cs-label"><span class="cs-icon">✅</span> Recommended Action</div>
+        <div class="cs-value action">${o.action}</div>
+      </div>
+      <div class="card-section">
+        <div class="cs-label"><span class="cs-icon">🎯</span> Confidence</div>
+        <div class="conf-bar-wrap">
+          <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${o.confidence}%"></div></div>
+          <span class="conf-pct">${o.confidence}%</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <span class="cf-action" onclick="askDossier('${o.id}')">📋 View full advisory dossier →</span>
+      <span class="cf-meta">Confirmed: ${o.confDate} · Score ${o.score}/9</span>
+    </div>
+  </div>`;
+}
+
+function riskSummaryResponse(orders) {
+  const atRisk = orders.filter(o => o.risk !== "low");
+  const revenue = "$945,000";
+  return `
+  <div class="agent-intro">Scanned <strong>${orders.length} open sales orders</strong> with delivery dates this week.</div>
+  <div class="summary-row">
+    <span class="summary-icon">⚠️</span>
+    <div>
+      <div class="summary-text">${atRisk.length} orders identified as high or medium risk</div>
+      <div class="summary-sub">Total revenue at risk: ${revenue} · Ranked by priority score</div>
+    </div>
+  </div>
+  <div class="cards-grid">${atRisk.map(orderCard).join("")}</div>
+  <div class="disclaimer-chip">⚠️ Advisory only — recommendations require manual execution by an authorized planner.</div>`;
+}
+
+function singleDossierResponse(o) {
+  return `
+  <div class="agent-intro">Full advisory dossier for <strong>Order ${o.id}</strong> — ${o.customer}.</div>
+  <div class="cards-grid">${orderCard(o)}</div>
+  <div class="disclaimer-chip">⚠️ Advisory only. No changes have been made to any SAP system.</div>`;
+}
+
+function execSummaryResponse() {
+  const atRisk = ORDERS.filter(o => o.risk !== "low");
+  return `
+  <div class="agent-intro"><strong>Executive OTD Risk Brief</strong> — week of ${new Date().toISOString().slice(0,10)}</div>
+  <div class="summary-row" style="background:#fce8e6;border-color:#d93025">
+    <span class="summary-icon">🚨</span>
+    <div>
+      <div class="summary-text" style="color:#9a0000">${atRisk.length} of ${ORDERS.length} open orders are at risk — $945K revenue exposure</div>
+      <div class="summary-sub" style="color:#b00020">2 orders require action TODAY to avoid SLA breach</div>
+    </div>
+  </div>
+  <div class="cards-grid">
+    <div class="order-card">
+      <div class="card-header"><div class="card-order-id">Root Cause Breakdown</div></div>
+      <div class="card-body" style="grid-template-columns:1fr">
+        <div class="card-section" style="border-right:none">
+          ${[["📦 Material Shortage","1 order · $480K","high"],["⚙️ Production Constraint","1 order · $220K","high"],["🏪 Warehouse / Transit","2 orders · $245K","med"],["✅ On Track","1 order","low"]].map(([label,sub,cls])=>`
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px">${label}</span>
+            <span class="risk-pill ${cls}" style="font-size:11px">${sub}</span>
+          </div>`).join("")}
+        </div>
+      </div>
+      <div class="card-footer"><span style="font-size:12px;color:var(--muted)">Immediate: prioritise 4500001 — highest score (9/9), delivery in 2 days</span></div>
+    </div>
+  </div>
+  <div class="disclaimer-chip">⚠️ Advisory only. Rankings based on read-only SAP data.</div>`;
+}
+
+function rankResponse() {
+  const ranked = [...ORDERS].sort((a,b) => b.score - a.score);
+  return `
+  <div class="agent-intro">Orders ranked by <strong>Priority Score</strong> (Customer Tier + SLA urgency + Revenue).</div>
+  <div class="cards-grid">
+    ${ranked.map((o,i) => `
+    <div class="order-card">
+      <div class="card-header">
+        <div class="card-order-id">
+          <span style="background:#e8f0fe;color:var(--blue);border-radius:6px;padding:2px 8px;font-size:12px;margin-right:8px">#${i+1}</span>
+          Order ${o.id} <span>${o.customer} · ${o.tier}</span>
+        </div>
+        <span class="risk-pill ${o.risk}"><span class="risk-dot"></span>${o.riskLabel}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-section">
+          <div class="cs-label">Priority Score</div>
+          <div class="cs-value" style="font-size:22px;font-weight:800;color:var(--blue)">${o.score}<span style="font-size:13px;font-weight:400;color:var(--muted)"> / 9</span></div>
+        </div>
+        <div class="card-section" style="border-right:none">
+          <div class="cs-label">🎯 Confidence</div>
+          <div class="conf-bar-wrap">
+            <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${o.confidence}%"></div></div>
+            <span class="conf-pct">${o.confidence}%</span>
+          </div>
+        </div>
+        <div class="card-section" style="border-bottom:none">
+          <div class="cs-label">${o.rootCauseIcon} Root Cause</div>
+          <div class="cs-value">${o.rootCause}</div>
+        </div>
+        <div class="card-section" style="border-right:none;border-bottom:none">
+          <div class="cs-label">✅ Action</div>
+          <div class="cs-value action">${o.action}</div>
+        </div>
+      </div>
+    </div>`).join("")}
+  </div>
+  <div class="disclaimer-chip">⚠️ Advisory only. Act on 4500001 first — highest score, shortest window.</div>`;
+}
+
 // ─── Agent client ──────────────────────────────────────────────────────────
 
-const AGENT_URL = "http://localhost:5000/";
+const AGENT_URL = "https://otd-fix-the-risk-agent.cfapps.us10.hana.ondemand.com/";
+// Demo-only bearer: a well-formed, unsigned JWT carrying just a `sub` claim so the
+// agent's identity middleware can extract a user. NOT a secret and NOT a real
+// credential — replace with a Joule/XSUAA-issued token for anything beyond a demo.
+const DEMO_BEARER = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJkZW1vLXVzZXIiLCJ1c2VyX25hbWUiOiJkZW1vLXVzZXIiLCJzY29wZSI6W119.";
 let _contextId = null;   // preserved across turns for multi-turn continuity
 let _msgCounter = 0;
 
@@ -806,7 +1010,10 @@ async function callAgent(query) {
 
   const resp = await fetch(AGENT_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + DEMO_BEARER
+    },
     body: JSON.stringify({ jsonrpc: "2.0", method: "message/send", id: 1, params })
   });
 
@@ -904,8 +1111,36 @@ async function sendMessage() {
   document.getElementById("sendBtn").disabled = true;
 
   appendUserMsg(q);
-  appendTyping();
 
+  // ── Keyword dispatch: instant card rendering from mock data ───────────────
+  // For well-known demo queries, render structured cards immediately (no wait).
+  // For free-form queries, fall through to the real A2A agent.
+  const ql = q.toLowerCase();
+  let instantHtml = null;
+
+  if (/at.risk.this.week|show.orders|orders.at.risk|list.*risk/i.test(ql)) {
+    instantHtml = riskSummaryResponse(ORDERS);
+  } else if (/rank.*priority|priority.*score|rank.*order/i.test(ql)) {
+    instantHtml = rankResponse();
+  } else if (/executive.*summary|exec.*summary|otd summary/i.test(ql)) {
+    instantHtml = execSummaryResponse();
+  } else {
+    const m = ql.match(/\b(4500\d{3})\b/);
+    if (m) {
+      const order = ORDERS.find(o => o.id === m[1]);
+      if (order) instantHtml = singleDossierResponse(order);
+    }
+  }
+
+  if (instantHtml) {
+    appendAgentMsg(instantHtml);
+    document.getElementById("sendBtn").disabled = false;
+    box.focus();
+    return;
+  }
+
+  // ── Free-form: call the real agent ────────────────────────────────────────
+  appendTyping();
   try {
     const text = await callAgent(q);
     removeTyping();
@@ -917,7 +1152,7 @@ async function sendMessage() {
     removeTyping();
     appendAgentMsg(
       `<div style="color:#d93025;font-size:13px">⚠️ <strong>Could not reach the agent:</strong> ${escHtml(String(err))}<br>` +
-      `<span style="color:#6b7a99">Make sure the agent is running: <code>IBD_TESTING=1 python app/main.py --port 5000</code></span></div>`
+      `<span style="color:#6b7a99">Check that the agent app is running on Cloud Foundry (<code>cf app otd-fix-the-risk-agent</code>).</span></div>`
     );
   }
   document.getElementById("sendBtn").disabled = false;
