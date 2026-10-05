@@ -31,12 +31,17 @@ applications:
       OTD_TOKEN_EXCHANGE_MODE: "basic"      # fixed technical user via OTD_S4_USER/PASSWORD
                                             # (cf set-env). Upgrade paths: "destination" | "xsuaa".
       OTD_HTTP_TIMEOUT_SECONDS: "30"
-      # LLM routing: Anthropic API direct (ANTHROPIC_API_KEY required).
-      OTD_LLM_ROUTE: "direct"
+      # LLM routing: "aicore" uses SAP Gen AI Hub (compliant Golden Path).
+      # init_llm(model_name) auto-resolves the deployment — no AICORE_DEPLOYMENT_ID needed.
+      OTD_LLM_ROUTE: "aicore"
+      AICORE_LLM_MODEL_NAME: "gpt-4o-mini"  # model name passed to init_llm(); override
+                                            # if your AI Core resource group has a different
+                                            # deployment (e.g. gpt-4o, mistral-large-latest).
     # SECRETS — set after push via `cf set-env`, never in this file.
-    # ANTHROPIC_API_KEY
-    # S/4 identity (basic mode): OTD_S4_USER, OTD_S4_PASSWORD
-    # Always needed:              OTD_SERVICE_BASE_URLS, AGENT_PUBLIC_URL
+    # For OTD_LLM_ROUTE=aicore: AICORE_CLIENT_ID, AICORE_CLIENT_SECRET,
+    #                            AICORE_BASE_URL, AICORE_AUTH_URL,
+    #                            AICORE_RESOURCE_GROUP (default: "default")
+    # Always needed:             AGENT_PUBLIC_URL
     # For the `destination` upgrade path, bind the destination + connectivity + xsuaa
     # service instances BEFORE first push (cf create-service / cf bind-service), set
     # OTD_TOKEN_EXCHANGE_MODE=destination, then uncomment — see DEPLOY.md §8. With a

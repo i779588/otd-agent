@@ -16,3 +16,6 @@ opentelemetry-instrumentation-starlette==0.65b0
 google-re2==1.1.20251105
 PyYAML==6.0.3
 pydantic==2.12.3
+
+# SAP Gen AI Hub SDK — required when OTD_LLM_ROUTE=aicore
+sap-ai-sdk-gen>=7.4.1

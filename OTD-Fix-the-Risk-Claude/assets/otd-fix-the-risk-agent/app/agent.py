@@ -22,14 +22,56 @@ from sap_cloud_sdk.agent_memory.factory.langgraph_checkpoint import create_check
 from circuit_breaker import CircuitBreaker
 from mcp_providers.agw import get_user_sub
 
+# Optional: SAP Gen AI Hub SDK (only required when OTD_LLM_ROUTE=aicore)
+try:
+    from gen_ai_hub.proxy.langchain.init_models import init_llm as _aicore_init_llm
+    _AICORE_SDK_AVAILABLE = True
+except ImportError:
+    _aicore_init_llm = None  # type: ignore[assignment]
+    _AICORE_SDK_AVAILABLE = False
+
+
+def _get_llm_route() -> str:
+    """Return 'aicore' (SAP Gen AI Hub) or 'direct' (Anthropic API via LiteLLM).
+    Set OTD_LLM_ROUTE=aicore to use the SAP Generative AI Hub — the compliant
+    Golden Path. Requires AICORE_* credentials and sap-ai-sdk-gen installed.
+    Default is 'direct' which requires ANTHROPIC_API_KEY.
+    """
+    return os.environ.get("OTD_LLM_ROUTE", "direct").lower()
+
+
+def _get_aicore_model_name() -> str:
+    """Model name passed to gen_ai_hub init_llm() for auto-deployment resolution.
+    The SDK finds the running deployment that serves this model — no deployment
+    ID needed. Override with AICORE_LLM_MODEL_NAME env var.
+    Common values: gpt-4o-mini, gpt-4o, mistral-large-latest, claude-3.5-sonnet
+    """
+    return os.environ.get("AICORE_LLM_MODEL_NAME", "gpt-4o-mini")
+
+
+def _build_aicore_llm(temperature: float) -> BaseLanguageModel:
+    """Build an LLM via SAP Gen AI Hub using init_llm(model_name).
+    Auto-resolves the deployment — no AICORE_DEPLOYMENT_ID required.
+    """
+    if not _AICORE_SDK_AVAILABLE or _aicore_init_llm is None:
+        raise ImportError(
+            "sap-ai-sdk-gen is required for OTD_LLM_ROUTE=aicore. "
+            "Run: pip install sap-ai-sdk-gen"
+        )
+    model_name = _get_aicore_model_name()
+    logger.info(
+        "AI Core: resolving deployment for model '%s' via init_llm (no deployment ID needed)",
+        model_name,
+    )
+    return _aicore_init_llm(model_name, temperature=temperature, max_tokens=8192)
+
 logger = logging.getLogger(__name__)
 
 # Transient failures that justify advancing to the next model in the fallback chain
-# and that count toward opening a model's circuit breaker. This mirrors the error
-# taxonomy SAP AI Core's orchestration fallback switches on for non-streaming
-# requests (408 Request Timeout, 429 Too Many Requests, and 5xx server errors).
-# Any other error (bad request, auth, content policy, ...) is not transient and
-# propagates immediately rather than silently burning through the fallback chain.
+# and that count toward opening a model's circuit breaker (408 Request Timeout,
+# 429 Too Many Requests, and 5xx server errors). Any other error (bad request,
+# auth, content policy, ...) is not transient and propagates immediately rather
+# than silently burning through the fallback chain.
 RETRYABLE_ERRORS: tuple[type[Exception], ...] = (
     APIConnectionError,
     Timeout,
@@ -59,8 +101,7 @@ When processing tool results:
     description="The language model powering this agent",
 )
 def get_model_name() -> str:
-    # Claude direct via LiteLLM's `anthropic/` provider (was SAP AI Core
-    # `sap/anthropic--claude-4.5-sonnet`). Override with OTD_MODEL, e.g.
+    # Anthropic API via LiteLLM. Override with OTD_MODEL, e.g.
     # anthropic/claude-sonnet-5 or anthropic/claude-opus-5. Requires ANTHROPIC_API_KEY.
     return os.environ.get("OTD_MODEL", "anthropic/claude-sonnet-4-5")
 
@@ -134,8 +175,7 @@ def summarization_trigger_tokens() -> int:
                 "model is used here to reduce cost.",
 )
 def get_summarization_model_name() -> str:
-    # Cheaper Claude model for history summarization (was SAP AI Core
-    # `sap/anthropic--claude-4.5-haiku`). Override with OTD_SUMMARIZATION_MODEL.
+    # Cheaper Claude model for history summarization. Override with OTD_SUMMARIZATION_MODEL.
     return os.environ.get("OTD_SUMMARIZATION_MODEL", "anthropic/claude-haiku-4-5")
 
 @prompt_section(
@@ -180,30 +220,39 @@ class SampleAgent:
                 {"location": "message", "role": "system", "control": {"type": "ephemeral"}}
             ]
         }
-        logger.info("LLM route: direct (Anthropic API via LiteLLM)")
 
-        def _build_llm(model: str) -> ChatLiteLLM:
-            return ChatLiteLLM(
-                model=model,
-                temperature=self._temperature,
-                model_kwargs=_cache_kwargs,
+        _route = _get_llm_route()
+        if _route == "aicore":
+            logger.info(
+                "LLM route: aicore (SAP Gen AI Hub) — model=%s (auto-resolved)",
+                _get_aicore_model_name(),
             )
+            _primary_llm = _build_aicore_llm(self._temperature)
+            self._model_chain = [(self._primary_model, _primary_llm)]
+            self.llm = _primary_llm
+            summarization_llm = _primary_llm   # reuse same model for summarization
+        else:
+            logger.info("LLM route: direct (Anthropic API via LiteLLM)")
 
-        # Ordered fallback chain: primary first, then each configured fallback.
-        # Fallbacks are given as a comma-separated list; blanks and duplicates
-        # are dropped while preserving order so a model is never tried twice.
-        fallback_models = [
-            m.strip() for m in get_fallback_model_names().split(",") if m.strip()
-        ]
-        ordered_models = list(dict.fromkeys([self._primary_model, *fallback_models]))
-        self._model_chain = [
-            (name, _build_llm(name)) for name in ordered_models
-        ]
-        self.llm = self._model_chain[0][1]
+            def _build_llm(model: str) -> ChatLiteLLM:
+                return ChatLiteLLM(
+                    model=model,
+                    temperature=self._temperature,
+                    model_kwargs=_cache_kwargs,
+                )
 
-        summarization_llm = ChatLiteLLM(
-            model=get_summarization_model_name(), temperature=0.0
-        )
+            fallback_models = [
+                m.strip() for m in get_fallback_model_names().split(",") if m.strip()
+            ]
+            ordered_models = list(dict.fromkeys([self._primary_model, *fallback_models]))
+            self._model_chain = [
+                (name, _build_llm(name)) for name in ordered_models
+            ]
+            self.llm = self._model_chain[0][1]
+
+            summarization_llm = ChatLiteLLM(
+                model=get_summarization_model_name(), temperature=0.0
+            )
 
         # The circuit breaker gives the chain a short cross-request memory: a model
         # that fails repeatedly is skipped for a cooldown instead of being re-tried
@@ -256,8 +305,7 @@ class SampleAgent:
 
         Models are tried in preference order. A transient failure (see
         RETRYABLE_ERRORS) advances to the next model and counts toward opening that
-        model's circuit breaker; any other error propagates immediately. This is the
-        client-side complement to SAP AI Core's per-request orchestration fallback.
+        model's circuit breaker; any other error propagates immediately.
         """
         config = {"configurable": {"thread_id": f"{get_user_sub()}:{context_id}"}}
         messages = {"messages": (extra_messages or []) + [HumanMessage(content=query)]}
